@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, Paperclip, X, Loader2, Type, GitBranch, MoreHorizontal, Bot, CornerDownLeft, Smile } from 'lucide-react'
+import { Send, Paperclip, X, Loader2, Type, GitBranch, MoreHorizontal, Bot, CornerDownLeft, Smile, CheckSquare } from 'lucide-react'
 import StickerPicker from './StickerPicker'
 import type { Sticker } from '../../lib/stickers'
 import { supabase } from '../../lib/supabase'
@@ -8,6 +8,8 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../ui/Toast'
 import RichTextEditor from '../ui/RichTextEditor'
 import StartWorkflowFromChatModal from './StartWorkflowFromChatModal'
+import QuickTaskModal from '../tasks/QuickTaskModal'
+import { useMediaQuery } from '../../lib/useMediaQuery'
 import type { ContextType, Profile } from '../../types'
 
 interface BotReplyContext {
@@ -53,8 +55,10 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
   const [mentions, setMentions] = useState<string[]>([])
   /** Round-9: pending @all / @groupname markers, expanded to user IDs at send. */
   const [groupMarkers, setGroupMarkers] = useState<Array<{ kind: 'all' } | { kind: 'group'; id: string; name: string }>>([])
+  const isMobile = useMediaQuery('(max-width: 767px)')
   const [workflowModalOpen, setWorkflowModalOpen] = useState(false)
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false)
+  const [taskModalOpen, setTaskModalOpen] = useState(false)
   const [workflowSearch, setWorkflowSearch] = useState<string | null>(null)
   const [preselectedWorkflowId, setPreselectedWorkflowId] = useState<string | null>(null)
   const [richMode, setRichMode] = useState(false)
@@ -736,9 +740,11 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
             onChange={handleTextareaInput}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder={isSelfChat
-              ? 'Nhập ghi chú… hoặc @ để chọn bot AI (Enter gửi)'
-              : 'Nhập tin nhắn… (Enter gửi · Shift+Enter xuống dòng · @ tag người)'
+            placeholder={isMobile
+              ? 'Nhập tin nhắn…'
+              : isSelfChat
+                ? 'Nhập ghi chú… hoặc @ để chọn bot AI (Enter gửi)'
+                : 'Nhập tin nhắn… (Enter gửi · Shift+Enter xuống dòng · @ tag người)'
             }
             rows={1}
             className="flex-1 resize-none border border-neutral-200 focus:border-primary-400 focus:outline-none rounded-lg px-3 py-2 text-sm font-serif bg-white overflow-hidden"
@@ -777,24 +783,25 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
               <Paperclip size={18} />
             </button>
 
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setStickerPickerOpen(v => !v)}
-                className={`transition-colors p-1.5 rounded-lg ${
-                  stickerPickerOpen ? 'text-primary-600 bg-primary-50' : 'text-neutral-400 hover:text-neutral-700'
-                }`}
-                title="Sticker"
-              >
-                <Smile size={18} />
-              </button>
-              <StickerPicker
-                open={stickerPickerOpen}
-                onClose={() => setStickerPickerOpen(false)}
-                onPick={sendSticker}
-                anchorClassName="bottom-full right-0 mb-2"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => setStickerPickerOpen(v => !v)}
+              className={`transition-colors p-1.5 rounded-lg ${
+                stickerPickerOpen ? 'text-primary-600 bg-primary-50' : 'text-neutral-400 hover:text-neutral-700'
+              }`}
+              title="Sticker"
+            >
+              <Smile size={18} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTaskModalOpen(true)}
+              className="text-neutral-400 hover:text-neutral-700 transition-colors p-1.5"
+              title="Tạo việc"
+            >
+              <CheckSquare size={18} />
+            </button>
           </div>
 
           {/* ── Mobile menu ── */}
@@ -815,6 +822,13 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 px-3 pt-2.5 pb-1">
                   Thêm vào tin nhắn
                 </p>
+                <button
+                  onClick={() => { setMobileMenuOpen(false); setTaskModalOpen(true) }}
+                  className="w-full text-left px-3 py-2.5 text-sm text-neutral-700 hover:bg-sky-50 hover:text-sky-700 flex items-center gap-2.5"
+                >
+                  <CheckSquare size={16} className="text-sky-500 shrink-0" />
+                  <span>Tạo việc cần làm</span>
+                </button>
                 <button
                   onClick={() => { setMobileMenuOpen(false); setWorkflowModalOpen(true) }}
                   className="w-full text-left px-3 py-2.5 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700 flex items-center gap-2.5"
@@ -853,12 +867,26 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
       </div>
     </div>
 
+    {/* StickerPicker at root level — renders on both mobile and desktop */}
+    <StickerPicker
+      open={stickerPickerOpen}
+      onClose={() => setStickerPickerOpen(false)}
+      onPick={(s) => { setStickerPickerOpen(false); sendSticker(s) }}
+      anchorClassName="bottom-full right-0 mb-2"
+    />
+
     <StartWorkflowFromChatModal
       open={workflowModalOpen}
       onClose={() => { setWorkflowModalOpen(false); setPreselectedWorkflowId(null) }}
       contextType={contextType}
       contextId={contextId}
       initialTemplateId={preselectedWorkflowId ?? undefined}
+    />
+
+    <QuickTaskModal
+      open={taskModalOpen}
+      onClose={() => setTaskModalOpen(false)}
+      chatContext={(contextType === 'channel' || contextType === 'project') ? { type: contextType, id: contextId } : null}
     />
     </>
   )
