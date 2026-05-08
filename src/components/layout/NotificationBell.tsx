@@ -96,7 +96,8 @@ export default function NotificationBell() {
               (n.kind === 'mention'
                 ? `/chat?ctx_type=${np.context_type ?? 'channel'}&ctx_id=${np.context_id ?? ''}&msg_id=${np.message_id ?? ''}`
                 : n.kind === 'dm_message'         ? `/chat?dm=${np.channel_id ?? ''}`
-                : n.kind === 'approval_requested' ? '/workflows'
+                : n.kind === 'approval_requested' || n.kind === 'step_approved' || n.kind === 'step_rejected' || n.kind === 'workflow_assigned' || n.kind === 'workflow_completed'
+                  ? (np.run_id ? `/workflows?open_run=${np.run_id}` : '/workflows')
                 : n.kind === 'project_assigned'   ? '/projects'
                 : n.kind === 'task_assigned'      ? '/tasks'
                 : '/')
@@ -188,18 +189,13 @@ export default function NotificationBell() {
         navigate('/projects')
         break
       case 'approval_requested':
-        if (meta.run_id) {
-          openPanel({ id: meta.run_id, kind: 'workflow_run', title: n.title })
-          navigate('/chat')
-        } else {
-          navigate('/workflows')
-        }
-        break
+      case 'step_approved':
+      case 'step_rejected':
       case 'workflow_assigned':
       case 'workflow_completed':
         if (meta.run_id) {
           openPanel({ id: meta.run_id, kind: 'workflow_run', title: n.title })
-          navigate('/chat')
+          navigate('/workflows')
         } else {
           navigate('/workflows')
         }
@@ -437,6 +433,10 @@ function KindIcon({ kind }: { kind: NotificationKind }) {
       return <div className={`${cls} text-rose-600`}><ClipboardList size={13} /></div>
     case 'approval_requested':
       return <div className={`${cls} text-amber-600`}><Check size={13} /></div>
+    case 'step_approved':
+      return <div className={`${cls} text-green-600`}><Check size={13} /></div>
+    case 'step_rejected':
+      return <div className={`${cls} text-red-500`}><X size={13} /></div>
     case 'task_assigned':
     case 'task_completed':
       return <div className={`${cls} text-primary-600`}><CheckSquare size={13} /></div>

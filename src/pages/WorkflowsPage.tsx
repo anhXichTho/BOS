@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Plus, Edit2, Play, Trash2, Users, Calendar, Power, Search, AlertCircle } from 'lucide-react'
 import AppShell from '../components/layout/AppShell'
 import Button from '../components/ui/Button'
@@ -196,6 +196,7 @@ function ConfirmDeleteModal({
 
 export default function WorkflowsPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { isAdmin, isEditor, isLeader, user } = useAuth()
   const { success, error: toastError } = useToast()
   const qc = useQueryClient()
@@ -206,6 +207,16 @@ export default function WorkflowsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'run' | 'template'; id: string; name: string } | null>(null)
   const canManage = isAdmin || isEditor
   const { data: pendingApprovals = 0 } = usePendingApprovalCount()
+
+  // Open specific run panel when navigated from a push notification (?open_run=<id>)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const runId = params.get('open_run')
+    if (runId) {
+      openPanel({ id: runId, kind: 'workflow_run', title: '▶ Nghiệp vụ' })
+      navigate('/workflows', { replace: true })
+    }
+  }, [location.search, navigate])
 
   // Persist active tab per user
   useEffect(() => {
