@@ -99,7 +99,8 @@ export default function NotificationBell() {
                 : n.kind === 'approval_requested' || n.kind === 'step_approved' || n.kind === 'step_rejected' || n.kind === 'workflow_assigned' || n.kind === 'workflow_completed'
                   ? (np.run_id ? `/workflows?open_run=${np.run_id}` : '/workflows')
                 : n.kind === 'project_assigned'   ? '/projects'
-                : n.kind === 'task_assigned'      ? '/tasks'
+                : n.kind === 'task_assigned' || n.kind === 'task_completed'
+                  ? (np.task_id ? `/tasks?id=${np.task_id}` : '/tasks')
                 : '/')
             await reg.showNotification(n.title || 'BOS', {
               body: n.body || '',
