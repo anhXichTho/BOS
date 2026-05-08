@@ -1,7 +1,14 @@
 /**
  * generate-icons.mjs
- * Creates public/icon-192.png and public/icon-512.png using only Node.js built-ins.
- * Colors: BOS primary blue #2452B1 background with a simple "B" initial.
+ * Fallback: creates solid-color public/icon-192.png and public/icon-512.png
+ * using only Node.js built-ins (no logo, just background color).
+ *
+ * NOTE: The actual PWA icons (icon-192.png, icon-512.png) are already generated
+ * from public/favicon.svg and checked in. Only run this if you need to
+ * regenerate placeholder icons without a browser available.
+ *
+ * To regenerate from favicon.svg:
+ *   node scripts/icon-server.mjs  (see comments in that file — uses a browser)
  *
  * Run once: node scripts/generate-icons.mjs
  */

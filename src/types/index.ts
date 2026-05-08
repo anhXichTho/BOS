@@ -454,6 +454,7 @@ export type NotificationKind =
   | 'task_assigned'
   | 'task_completed'
   | 'reminder'
+  | 'dm_message'
 
 export interface Notification {
   id: string

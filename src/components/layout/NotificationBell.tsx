@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
-  Bell, X, Check, AtSign, FolderKanban, GitBranch, Calendar, ClipboardList, FileText, Inbox, CheckSquare,
+  Bell, X, Check, AtSign, FolderKanban, GitBranch, Calendar, ClipboardList, FileText, Inbox, CheckSquare, MessageSquare,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
@@ -93,6 +93,7 @@ export default function NotificationBell() {
             const reg = await navigator.serviceWorker.ready
             const navUrl =
               n.kind === 'mention'            ? '/chat'      :
+              n.kind === 'dm_message'         ? '/chat'      :
               n.kind === 'approval_requested' ? '/workflows' :
               n.kind === 'project_assigned'   ? '/projects'  :
               n.kind === 'task_assigned'      ? '/tasks'     :
@@ -173,6 +174,13 @@ export default function NotificationBell() {
     switch (n.kind) {
       case 'mention':
         navigate('/chat')
+        break
+      case 'dm_message':
+        if (meta.channel_id) {
+          navigate(`/chat?dm=${meta.channel_id}`)
+        } else {
+          navigate('/chat')
+        }
         break
       case 'project_assigned':
         navigate('/projects')
@@ -412,6 +420,8 @@ export default function NotificationBell() {
 function KindIcon({ kind }: { kind: NotificationKind }) {
   const cls = 'w-7 h-7 rounded-md flex items-center justify-center shrink-0 mt-0.5 bg-white border border-neutral-200'
   switch (kind) {
+    case 'dm_message':
+      return <div className={`${cls} text-primary-600`}><MessageSquare size={13} /></div>
     case 'mention':
       return <div className={`${cls} text-primary-600`}><AtSign size={13} /></div>
     case 'project_assigned':
