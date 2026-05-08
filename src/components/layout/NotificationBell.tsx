@@ -88,16 +88,18 @@ export default function NotificationBell() {
           // showNotification calls collapse to a single OS toast when both
           // fire successfully.
           if (payload.eventType !== 'INSERT' || typeof Notification === 'undefined' || Notification.permission !== 'granted') return
-          const n = payload.new as { id?: string; title?: string; body?: string; kind?: string }
+          const n = payload.new as { id?: string; title?: string; body?: string; kind?: string; payload?: Record<string, string>; link?: string }
           try {
             const reg = await navigator.serviceWorker.ready
-            const navUrl =
-              n.kind === 'mention'            ? '/chat'      :
-              n.kind === 'dm_message'         ? '/chat'      :
-              n.kind === 'approval_requested' ? '/workflows' :
-              n.kind === 'project_assigned'   ? '/projects'  :
-              n.kind === 'task_assigned'      ? '/tasks'     :
-              '/'
+            const np = n.payload ?? {}
+            const navUrl = n.link ??
+              (n.kind === 'mention'
+                ? `/chat?ctx_type=${np.context_type ?? 'channel'}&ctx_id=${np.context_id ?? ''}&msg_id=${np.message_id ?? ''}`
+                : n.kind === 'dm_message'         ? `/chat?dm=${np.channel_id ?? ''}`
+                : n.kind === 'approval_requested' ? '/workflows'
+                : n.kind === 'project_assigned'   ? '/projects'
+                : n.kind === 'task_assigned'      ? '/tasks'
+                : '/')
             await reg.showNotification(n.title || 'BOS', {
               body: n.body || '',
               icon: '/icon-192.png',
