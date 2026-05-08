@@ -1,0 +1,277 @@
+@import "tailwindcss";
+
+/*
+  XT-Design v1.1 — Hybrid Carbon × Fluent, Warm Retro Edition (sole theme).
+  Engineered yet approachable: 4px radius on blocks, 0px on section tabs,
+  light shadows for elevation, hairline borders for hierarchy.
+  Primary anchor: #4A6AAB (warm blue).
+  Paper bg: #FDFDFC. Text-primary: #3B3B3B.
+  Typography: Inter (default) ↔ IBM Plex Sans (data-font="plex") ↔ Source Serif 4 (data-font="serif").
+  Light theme only — dark scaffold removed (XT v1.1 is light-only by design).
+*/
+
+@theme {
+  /* Primary palette — derived around #4A6AAB (XT warm blue). */
+  --color-primary-50:  #eef1f8;
+  --color-primary-100: #d6deec;
+  --color-primary-200: #aebcd8;
+  --color-primary-300: #7c8fbf;
+  --color-primary-400: #5b73ae;
+  --color-primary-500: #4A6AAB;
+  --color-primary-600: #4A6AAB;   /* primary action / brand anchor */
+  --color-primary-700: #3D5994;   /* hover/pressed */
+  --color-primary-800: #2f4778;
+  --color-primary-900: #1f315a;
+
+  /* Neutrals — warm grey + paper-ivory (replaces Carbon cool grey). */
+  --color-neutral-25:  #FDFDFC;   /* paper bg / surface-1 (was #ffffff) */
+  --color-neutral-50:  #FDFDFC;   /* nav bg = paper (was #f4f4f4) */
+  --color-neutral-100: #E0E0E0;   /* default border (matches XT spec) */
+  --color-neutral-200: #BCBCBC;   /* border-strong, scrollbar thumb */
+  --color-neutral-300: #A09E99;   /* divider / muted */
+  --color-neutral-400: #92918D;   /* text-secondary (XT spec) */
+  --color-neutral-500: #6F6F6E;   /* mid muted */
+  --color-neutral-600: #524F4D;   /* ink-strong (dark btn bg, tooltip bg) */
+  --color-neutral-700: #3B3B3B;   /* text-primary (XT spec) */
+  --color-neutral-800: #2A2A29;
+  --color-neutral-900: #1F1E1C;
+
+  /* Accents (XT v1.1 — NEW). */
+  --color-accent-retro:  #C1695B;   /* signature retro red — top-borders, today-cell, decorative only */
+  --color-accent-orange: #CC6947;   /* warm CTA orange — emotional CTA */
+
+  /* Semantic. */
+  --color-success: #5A8C5A;
+  --color-warning: #C8954A;
+  --color-danger:  #C9534B;
+
+  /* Surface / convenience tokens. */
+  --color-surface-1:  #FFFFFF;
+  --color-surface-2:  #E7E7E7;
+  --color-hover-soft: #EFEEEC;
+  --color-text-link:  #485D8D;
+
+  /* Fonts — `--font-serif` legacy token kept for backward compat. */
+  --font-serif: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-sans:  "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono:  "JetBrains Mono", "IBM Plex Mono", Consolas, monospace;
+}
+
+/*
+  Body font is controlled by data-font on <html>:
+    data-font="inter" (default) → Inter
+    data-font="plex"            → IBM Plex Sans
+    data-font="serif"           → Source Serif 4 (XT v1.1 NEW)
+  All `font-serif` Tailwind utility usages resolve through --font-serif.
+*/
+html[data-font="plex"] {
+  --font-serif: "IBM Plex Sans", "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans:  "IBM Plex Sans", "Inter", system-ui, -apple-system, sans-serif;
+}
+
+html[data-font="serif"] {
+  --font-serif: "Source Serif 4", "Source Serif Pro", Georgia, serif;
+  --font-sans:  "Source Serif 4", "Source Serif Pro", Georgia, serif;
+}
+
+/* ─── Hybrid geometry — 4px std on blocks; 6px on modals; 0px on section tabs ─── */
+/* Standard 4px on the common block radii. */
+.rounded,
+.rounded-md,
+.rounded-lg { border-radius: 4px !important; }
+
+/* Modals + larger cards step up to 6px. */
+.rounded-xl { border-radius: 6px !important; }
+
+/* Mobile bottom sheets keep a softer top corner. */
+.rounded-2xl,
+.rounded-t-2xl,
+.rounded-b-2xl { border-radius: 8px !important; }
+
+/* Kill aggressively rounded utilities — they don't fit the engineered look. */
+.rounded-3xl { border-radius: 0 !important; }
+
+/* Section tabs (module nav) opt-in via the .section-tab-bookmark class. Keep 0px. */
+.section-tab-bookmark { border-radius: 0 !important; }
+
+/* `rounded-full` is intentionally untouched — pills/avatars/chips stay round. */
+
+/* ─── Hybrid elevation — light & deep shadows (XT v1.1 — softer 0.06–0.12) ─── */
+/* Light shadow — KPI cards, popovers, side panels, floating cards. */
+.shadow-sm,
+.shadow,
+.shadow-md { box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important; }
+
+/* Deep shadow — modals, toasts, top-most floating layers. */
+.shadow-lg,
+.shadow-xl,
+.shadow-2xl { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important; }
+
+/* `shadow-none` opt-out (sidebars, headers, tables, section tabs). */
+.shadow-none { box-shadow: none !important; }
+
+/* ─── Focus ring — 1px crisp primary outline ─── */
+.focus\:border-primary-400:focus,
+.focus-within\:border-primary-400:focus-within,
+.focus\:border-primary-600:focus,
+.focus-within\:border-primary-600:focus-within {
+  outline: 1px solid var(--color-primary-600);
+  outline-offset: -1px;
+}
+
+/* ─── Global resets ─────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-serif);
+  font-size: 14px;            /* UI Body baseline */
+  line-height: 1.5;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+  color: #3B3B3B;             /* text-primary (XT) */
+  background: #FDFDFC;        /* paper bg (XT) */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* ─── Custom scrollbar — XT warm greys ─────────────────── */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #BCBCBC; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #92918D; }
+
+/* ─── Selection ─────────────────────────────────────────── */
+::selection {
+  background: #d6deec;       /* primary-100 */
+  color: #3B3B3B;
+}
+
+/* ─── Rich text editor ──────────────────────────────────── */
+.rich-editor:empty:before {
+  content: attr(data-placeholder);
+  color: #A09E99;
+  pointer-events: none;
+  display: block;
+}
+.rich-editor h1 { font-size: 1.4rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
+.rich-editor h2 { font-size: 1.15rem; font-weight: 600; margin: 0.4rem 0 0.2rem; }
+.rich-editor ul { list-style: disc; margin-left: 1.25rem; padding-left: 0.5rem; }
+.rich-editor ol { list-style: decimal; margin-left: 1.25rem; padding-left: 0.5rem; }
+.rich-editor li { margin: 0.15rem 0; }
+.rich-editor img { max-width: 100%; max-height: 400px; margin: 0.25rem 0; }
+.rich-editor a { color: #4A6AAB; text-decoration: underline; }
+.rich-editor blockquote { border-left: 3px solid #E0E0E0; padding-left: 0.75rem; margin: 0.5rem 0; color: #524F4D; }
+.rich-editor pre { background: #EFEEEC; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.85em; border-radius: 4px; }
+.rich-editor code { background: #EFEEEC; padding: 0.1rem 0.3rem; font-family: var(--font-mono); font-size: 0.85em; border-radius: 4px; }
+.rich-editor p { margin: 0.25rem 0; }
+
+/* Display version uses the same styles via .rich-content */
+.rich-content h1 { font-size: 1.4rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
+.rich-content h2 { font-size: 1.15rem; font-weight: 600; margin: 0.4rem 0 0.2rem; }
+.rich-content ul { list-style: disc; margin-left: 1.25rem; padding-left: 0.5rem; }
+.rich-content ol { list-style: decimal; margin-left: 1.25rem; padding-left: 0.5rem; }
+.rich-content li { margin: 0.15rem 0; }
+.rich-content img { max-width: 100%; max-height: 400px; margin: 0.25rem 0; }
+.rich-content a { color: #4A6AAB; text-decoration: underline; }
+.rich-content blockquote { border-left: 3px solid #E0E0E0; padding-left: 0.75rem; margin: 0.5rem 0; color: #524F4D; }
+.rich-content pre { background: #EFEEEC; padding: 0.5rem; font-family: var(--font-mono); font-size: 0.85em; border-radius: 4px; }
+.rich-content code { background: #EFEEEC; padding: 0.1rem 0.3rem; font-family: var(--font-mono); font-size: 0.85em; border-radius: 4px; }
+.rich-content p { margin: 0.25rem 0; }
+.rich-content p:first-child { margin-top: 0; }
+.rich-content p:last-child  { margin-bottom: 0; }
+
+/* ─── React Flow visual overrides ──────────────────────────────────────────
+   The workflow editor canvas (WorkflowFlowPanel) uses @xyflow/react. Defaults
+   are too colourful for the XT palette — these overrides match the warm
+   neutrals + ensure edges have visible stroke even if the lib's stylesheet
+   loads after Tailwind's preflight. */
+
+/* Handles — small grey circles flush with node border, not the bright blue default.
+   In Round-4c the canvas is interactive, so handles must be visibly grabbable. */
+.react-flow__handle {
+  width: 9px !important;
+  height: 9px !important;
+  min-width: 9px !important;
+  min-height: 9px !important;
+  background: #92918D !important;
+  border: 1.5px solid #FDFDFC !important;
+  border-radius: 9999px !important;
+  cursor: crosshair !important;
+  transition: background 120ms, transform 120ms;
+}
+.react-flow__handle:hover {
+  background: #4A6AAB !important;
+  transform: scale(1.3);
+}
+.react-flow__handle.connectionindicator { cursor: crosshair !important; }
+/* Ghost line shown while dragging a connection — match the saved-edge stroke. */
+.react-flow__connection-path {
+  stroke: #4A6AAB !important;
+  stroke-width: 2 !important;
+  fill: none !important;
+}
+
+/* Edges — make sure stroke + arrow are visible against the paper bg.
+   Use !important: the lib's own stylesheet may load after Tailwind's preflight
+   (depending on Vite chunk order) and otherwise wins. */
+.react-flow__edge-path {
+  stroke: #6F6F6E !important;
+  stroke-width: 2 !important;
+  fill: none !important;
+}
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:focus .react-flow__edge-path {
+  stroke: #4A6AAB !important;
+  stroke-width: 2.4 !important;
+}
+.react-flow__arrowhead path,
+.react-flow__edge .react-flow__arrowhead path { fill: #6F6F6E !important; }
+
+/* Edge labels — small pill on branch edges. */
+.react-flow__edge-textbg { fill: #FEF3C7; }
+.react-flow__edge-text   { font-size: 10px; font-weight: 600; fill: #92918D; }
+
+/* Round-5 Phase C — outline a node briefly when its responsibility is being
+   shown in the form-fill responsibility map. Driven by `className` set on
+   the React Flow node. */
+.react-flow__node.bos-flow-highlighted > div {
+  outline: 2px dashed #C8954A !important;
+  outline-offset: 2px;
+}
+
+/* Round-5 follow-up — view mode: hide the connector dots + grab cursor so
+   the canvas reads cleanly when the user is just browsing. The handles are
+   still functional under the hood (Reactflow uses them to anchor edges)
+   but they become invisible + non-interactive. */
+.bos-flow-view-mode .react-flow__handle {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  cursor: default !important;
+}
+.bos-flow-view-mode .react-flow__node {
+  cursor: pointer !important;
+}
+
+/* ─── Round-9 polish — chat motion ─────────────────────────
+   Subtle fade-up for newly-rendered chat messages. Used by
+   MessageFeed message rows. 240ms is fast enough not to feel
+   sluggish but slow enough to register as warmth. */
+@keyframes bos-fade-in-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.bos-fade-in-up { animation: bos-fade-in-up 240ms ease-out both; }
+
