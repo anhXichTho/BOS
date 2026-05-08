@@ -934,6 +934,7 @@ function ReminderModal({
   chatContext: { type: 'channel' | 'project' | 'portal'; id: string }
 }) {
   const { user } = useAuth()
+  const qc = useQueryClient()
   const { success: toastSuccess, error: toastError } = useToast()
   const [title, setTitle]   = useState(initialTitle)
   const [date, setDate]     = useState('')
@@ -980,6 +981,24 @@ function ReminderModal({
         source_context_id:   chatContext.id,
       })
       if (error) throw error
+
+      // Post a reminder_card to chat immediately so the team sees it
+      if (ctxType) {
+        await supabase.from('chat_messages').insert({
+          context_type: ctxType,
+          context_id:   chatContext.id,
+          author_id:    user.id,
+          message_type: 'rich_card',
+          content:      null,
+          payload: {
+            kind:    'reminder_card',
+            title:   title.trim(),
+            fire_at: fireAt.toISOString(),
+          },
+        })
+        qc.invalidateQueries({ queryKey: ['messages', chatContext.id] })
+      }
+
       toastSuccess(`Đã đặt nhắc lúc ${fireAt.toLocaleString('vi')}`)
       onClose()
     } catch (e: any) {
