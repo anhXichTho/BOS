@@ -205,18 +205,28 @@ export default function WorkflowsPage() {
   const [runTarget, setRunTarget] = useState<WorkflowTemplate | null>(null)
   const [scheduleEditor, setScheduleEditor] = useState<{ open: boolean; schedule: WorkflowSchedule | null }>({ open: false, schedule: null })
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'run' | 'template'; id: string; name: string } | null>(null)
+  const [highlightedRunId, setHighlightedRunId] = useState<string | null>(null)
   const canManage = isAdmin || isEditor
   const { data: pendingApprovals = 0 } = usePendingApprovalCount()
 
-  // Open specific run panel when navigated from a push notification (?open_run=<id>)
+  // Open specific run panel + highlight it when navigated from a push notification (?open_run=<id>)
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const runId = params.get('open_run')
     if (runId) {
+      setTab('my-runs')
+      setHighlightedRunId(runId)
       openPanel({ id: runId, kind: 'workflow_run', title: '▶ Nghiệp vụ' })
       navigate('/workflows', { replace: true })
     }
   }, [location.search, navigate])
+
+  // Auto-clear highlight after 3s
+  useEffect(() => {
+    if (!highlightedRunId) return
+    const t = setTimeout(() => setHighlightedRunId(null), 3000)
+    return () => clearTimeout(t)
+  }, [highlightedRunId])
 
   // Persist active tab per user
   useEffect(() => {
@@ -460,7 +470,7 @@ export default function WorkflowsPage() {
           runsLoading ? <SkeletonList count={3} /> : (() => {
             const q = search.toLowerCase()
             const filtered = q ? myRuns.filter(r => r.template_name.toLowerCase().includes(q)) : myRuns
-            return <RunList runs={filtered} onOpen={(id, name) => openPanel({ id, kind: 'workflow_run', title: `▶ ${name}` })} onDelete={(id, name) => setDeleteConfirm({ type: 'run', id, name })} emptyMessage={q ? 'Không tìm thấy luồng nào.' : undefined} />
+            return <RunList runs={filtered} highlightedRunId={highlightedRunId} onOpen={(id, name) => openPanel({ id, kind: 'workflow_run', title: `▶ ${name}` })} onDelete={(id, name) => setDeleteConfirm({ type: 'run', id, name })} emptyMessage={q ? 'Không tìm thấy luồng nào.' : undefined} />
           })()
         )}
 
@@ -480,7 +490,7 @@ export default function WorkflowsPage() {
                   <Users size={14} className="text-neutral-400" />
                   <span className="text-sm text-neutral-500">{filtered.length} luồng của team</span>
                 </div>
-                <RunList runs={filtered} onOpen={(id, name) => openPanel({ id, kind: 'workflow_run', title: `▶ ${name}` })} onDelete={(id, name) => setDeleteConfirm({ type: 'run', id, name })} showRunner emptyMessage={q ? 'Không tìm thấy luồng nào.' : undefined} />
+                <RunList runs={filtered} highlightedRunId={highlightedRunId} onOpen={(id, name) => openPanel({ id, kind: 'workflow_run', title: `▶ ${name}` })} onDelete={(id, name) => setDeleteConfirm({ type: 'run', id, name })} showRunner emptyMessage={q ? 'Không tìm thấy luồng nào.' : undefined} />
               </div>
             )
           })()
@@ -613,13 +623,21 @@ function RunList({
   onDelete,
   showRunner = false,
   emptyMessage,
+  highlightedRunId,
 }: {
   runs: RunWithSteps[]
   onOpen: (id: string, name: string) => void
   onDelete?: (id: string, name: string) => void
   showRunner?: boolean
   emptyMessage?: string
+  highlightedRunId?: string | null
 }) {
+  useEffect(() => {
+    if (!highlightedRunId) return
+    const el = document.querySelector(`[data-run-id="${highlightedRunId}"]`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [highlightedRunId, runs.length])
+
   if (runs.length === 0) {
     return <p className="text-sm text-neutral-400">{emptyMessage ?? 'Chưa có luồng nghiệp vụ nào.'}</p>
   }
@@ -635,8 +653,11 @@ function RunList({
         return (
           <div
             key={r.id}
+            data-run-id={r.id}
             onClick={() => onOpen(r.id, r.template_name)}
-            className="group flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-neutral-25 transition-colors"
+            className={`group flex items-start gap-3 px-4 py-3 cursor-pointer hover:bg-neutral-25 transition-colors ${
+              r.id === highlightedRunId ? 'ring-2 ring-inset ring-primary-300 bg-primary-50/40' : ''
+            }`}
           >
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-neutral-800">{r.template_name}</p>
