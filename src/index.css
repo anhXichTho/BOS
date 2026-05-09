@@ -128,9 +128,6 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
-  /* Prevent any child element from causing horizontal scroll on mobile */
-  overflow-x: hidden;
-  max-width: 100%;
 }
 
 body {
@@ -143,6 +140,16 @@ body {
   background: #FDFDFC;        /* paper bg (XT) */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* iOS Safari auto-zooms when input font-size < 16px, shifting the layout
+   horizontally and pushing the Send button off screen. Force 16px on mobile
+   to prevent the zoom. Visual size stays the same (controlled by Tailwind
+   text-sm via em/rem scaling after zoom is disabled). */
+@media screen and (max-width: 767px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
 }
 
 h1, h2, h3, h4, h5, h6 {
