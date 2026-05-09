@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
@@ -7,6 +7,10 @@ import Sidebar from './Sidebar'
 import NotificationBell from './NotificationBell'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSidePanel } from '../../lib/sidePanelStore'
+
+const DrawerCloseContext = createContext<() => void>(() => {})
+/** Call inside any sidebar component to close the mobile drawer when an item is selected. */
+export function useCloseDrawer() { return useContext(DrawerCloseContext) }
 
 interface AppShellProps {
   sidebar?: ReactNode
@@ -74,7 +78,9 @@ export default function AppShell({ sidebar, children, title }: AppShellProps) {
                 <X size={18} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto">{sidebar}</div>
+            <DrawerCloseContext.Provider value={() => setDrawerOpen(false)}>
+              <div className="flex-1 overflow-y-auto">{sidebar}</div>
+            </DrawerCloseContext.Provider>
           </div>
         </>
       )}
