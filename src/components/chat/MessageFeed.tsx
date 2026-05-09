@@ -45,6 +45,9 @@ export default function MessageFeed({ contextType, contextId, onReplyToBot, scro
   const qc = useQueryClient()
   const bottomRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  // Tracks the scrollHeight seen on the previous effect run, so we can detect
+  // "user was at the bottom before a new message expanded the container".
+  const prevScrollHeightRef = useRef<number>(0)
   const { user, isAdmin, isEditor } = useAuth()
 
   // Round-10: pin / edit / delete state
@@ -119,23 +122,23 @@ export default function MessageFeed({ contextType, contextId, onReplyToBot, scro
   // bubble (Zalo-style); the old "+ N câu trả lời" thread badge + counts
   // query are gone.
 
-  // Track previous contextId to detect channel switches vs new messages arriving.
-  const prevContextIdRef = useRef<string | null>(null)
-
-  // Scroll to bottom on new messages (skip when we're about to scroll to a specific message).
-  // Use scrollTop = scrollHeight for reliable full-bottom scroll (avoids padding/block issues).
-  // Instant on channel switch, smooth for incremental new messages.
+  // Scroll to bottom when messages load or context changes.
+  // Uses direct scrollTop assignment — immune to StrictMode double-invoke and smooth-scroll races.
+  // "was at bottom" is evaluated against the PREVIOUS scrollHeight so that a newly-rendered
+  // tall message doesn't push the user away from bottom without auto-following.
   useEffect(() => {
     if (effectiveScrollMsgId) return
     if (messages.length === 0) return
-    const isChannelSwitch = prevContextIdRef.current !== contextId
-    prevContextIdRef.current = contextId
     const el = scrollContainerRef.current
     if (!el) return
-    if (isChannelSwitch) {
+    const isContextSwitch = el.dataset.lastContext !== contextId
+    el.dataset.lastContext = contextId
+    // Were we at (or within 20px of) the bottom before this render expanded the container?
+    const wasAtBottom = prevScrollHeightRef.current === 0 ||
+      el.scrollTop + el.clientHeight >= prevScrollHeightRef.current - 20
+    prevScrollHeightRef.current = el.scrollHeight
+    if (isContextSwitch || wasAtBottom) {
       el.scrollTop = el.scrollHeight
-    } else {
-      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
     }
   }, [messages.length, effectiveScrollMsgId, contextId])
 
