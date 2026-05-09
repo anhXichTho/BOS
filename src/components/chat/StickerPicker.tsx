@@ -55,7 +55,7 @@ export default memo(function StickerPicker({ open, onClose, onPick, anchorClassN
   return (
     <div
       ref={ref}
-      className={`absolute z-40 bg-white border border-neutral-200 rounded-lg shadow-lg p-2 w-[300px] max-h-[340px] flex flex-col ${anchorClassName}`}
+      className={`absolute z-40 bg-white border border-neutral-200 rounded-lg shadow-lg p-2 w-[300px] max-w-[calc(100vw-1rem)] max-h-[340px] flex flex-col ${anchorClassName}`}
       // Stop bubbling — defensive against parent handlers that might close.
       onMouseDown={e => e.stopPropagation()}
     >

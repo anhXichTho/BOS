@@ -128,6 +128,9 @@ html, body, #root {
   height: 100%;
   margin: 0;
   padding: 0;
+  /* Prevent any child element from causing horizontal scroll on mobile */
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
