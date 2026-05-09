@@ -44,6 +44,7 @@ function relativeTime(ts: string) {
 export default function MessageFeed({ contextType, contextId, onReplyToBot, scrollToMessageId, onScrolled, onReplyToMsg }: Props) {
   const qc = useQueryClient()
   const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
   const { user, isAdmin, isEditor } = useAuth()
 
   // Round-10: pin / edit / delete state
@@ -122,17 +123,20 @@ export default function MessageFeed({ contextType, contextId, onReplyToBot, scro
   const prevContextIdRef = useRef<string | null>(null)
 
   // Scroll to bottom on new messages (skip when we're about to scroll to a specific message).
-  // Use 'instant' on first load / channel switch so the user lands at the bottom immediately;
-  // use 'smooth' for incremental new messages so the feed feels alive.
+  // Use scrollTop = scrollHeight for reliable full-bottom scroll (avoids padding/block issues).
+  // Instant on channel switch, smooth for incremental new messages.
   useEffect(() => {
     if (effectiveScrollMsgId) return
     if (messages.length === 0) return
     const isChannelSwitch = prevContextIdRef.current !== contextId
     prevContextIdRef.current = contextId
-    bottomRef.current?.scrollIntoView({
-      behavior: isChannelSwitch ? 'instant' : 'smooth',
-      block: 'end',
-    })
+    const el = scrollContainerRef.current
+    if (!el) return
+    if (isChannelSwitch) {
+      el.scrollTop = el.scrollHeight
+    } else {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    }
   }, [messages.length, effectiveScrollMsgId, contextId])
 
   // Scroll to and highlight a specific message (search hit from ChatPage topbar OR deep-link prop)
@@ -250,7 +254,7 @@ export default function MessageFeed({ contextType, contextId, onReplyToBot, scro
   if (isLoading) return <SkeletonList count={5} />
 
   return (
-    <div className="flex flex-col flex-1 overflow-y-auto px-4 py-3 gap-4">
+    <div ref={scrollContainerRef} className="flex flex-col flex-1 overflow-y-auto px-4 py-3 gap-4">
       {/* Round-10: search moved into ChatPage topbar; keep a small refresh
           button only — discoverable but unobtrusive. */}
       <div className="flex justify-end items-center gap-1">
