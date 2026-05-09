@@ -865,15 +865,15 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
           </button>
         </div>
       </div>
-    </div>
 
-    {/* StickerPicker at root level — renders on both mobile and desktop */}
-    <StickerPicker
-      open={stickerPickerOpen}
-      onClose={() => setStickerPickerOpen(false)}
-      onPick={(s) => { setStickerPickerOpen(false); sendSticker(s) }}
-      anchorClassName="bottom-full right-0 mb-2"
-    />
+      {/* StickerPicker inside the relative container so absolute positioning works on both mobile + desktop */}
+      <StickerPicker
+        open={stickerPickerOpen}
+        onClose={() => setStickerPickerOpen(false)}
+        onPick={(s) => { setStickerPickerOpen(false); sendSticker(s) }}
+        anchorClassName="bottom-full right-0 mb-2"
+      />
+    </div>
 
     <StartWorkflowFromChatModal
       open={workflowModalOpen}
