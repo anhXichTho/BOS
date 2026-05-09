@@ -118,11 +118,22 @@ export default function MessageFeed({ contextType, contextId, onReplyToBot, scro
   // bubble (Zalo-style); the old "+ N câu trả lời" thread badge + counts
   // query are gone.
 
-  // Scroll to bottom on new messages (skip when we're about to scroll to a specific message)
+  // Track previous contextId to detect channel switches vs new messages arriving.
+  const prevContextIdRef = useRef<string | null>(null)
+
+  // Scroll to bottom on new messages (skip when we're about to scroll to a specific message).
+  // Use 'instant' on first load / channel switch so the user lands at the bottom immediately;
+  // use 'smooth' for incremental new messages so the feed feels alive.
   useEffect(() => {
     if (effectiveScrollMsgId) return
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length, effectiveScrollMsgId])
+    if (messages.length === 0) return
+    const isChannelSwitch = prevContextIdRef.current !== contextId
+    prevContextIdRef.current = contextId
+    bottomRef.current?.scrollIntoView({
+      behavior: isChannelSwitch ? 'instant' : 'smooth',
+      block: 'end',
+    })
+  }, [messages.length, effectiveScrollMsgId, contextId])
 
   // Scroll to and highlight a specific message (search hit from ChatPage topbar OR deep-link prop)
   useEffect(() => {
