@@ -25,8 +25,13 @@ export default function AppShell({ sidebar, children, title }: AppShellProps) {
   const { active: panelActive } = useSidePanel()
   const pushRight = !!panelActive && !panelActive.expanded
 
-  // Close drawer when navigating
-  useEffect(() => { setDrawerOpen(false) }, [location.pathname])
+  const hasSidebar = !!sidebar
+
+  // Auto-open drawer when navigating to /chat (so channel list shows immediately).
+  // Close it when navigating to any other tab.
+  useEffect(() => {
+    setDrawerOpen(hasSidebar && location.pathname.startsWith('/chat'))
+  }, [location.pathname, hasSidebar])
 
   if (loading) {
     return (
