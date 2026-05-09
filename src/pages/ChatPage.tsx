@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, memo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Plus, Hash, FolderKanban, UserCircle, ChevronDown, ChevronRight, Users } from 'lucide-react'
-import AppShell from '../components/layout/AppShell'
+import AppShell, { useCloseDrawer } from '../components/layout/AppShell'
 import { SidebarSection, SidebarItem } from '../components/layout/Sidebar'
 import MessageFeed from '../components/chat/MessageFeed'
 import MessageInput from '../components/chat/MessageInput'
@@ -72,6 +72,8 @@ function ChatSidebar({
   onSearchHit?: (ctx: ActiveContext, msgId: string) => void
 }) {
   const { isAdmin, isEditor, selfChatId, user } = useAuth()
+  const closeDrawer = useCloseDrawer()
+  const select = (ctx: ActiveContext) => { closeDrawer(); onSelect(ctx) }
   const { success, error: toastError } = useToast()
   const qc = useQueryClient()
   const [showNewChannel, setShowNewChannel] = useState(false)
@@ -268,14 +270,14 @@ function ChatSidebar({
               name: ctx.name,
             }
             if (onSearchHit) onSearchHit(next, ctx.msgId)
-            else onSelect(next)
+            else select(next)
           }}
         />
         {/* Personal channel — pinned at top */}
         {selfChatId && (
           <div className="px-3 pt-3 pb-1">
             <button
-              onClick={() => onSelect({ type: 'channel', id: selfChatId, name: 'Cá nhân' })}
+              onClick={() => select({ type: 'channel', id: selfChatId, name: 'Cá nhân' })}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm font-medium transition-all rounded-lg shadow-sm border ${
                 active?.id === selfChatId
                   ? 'border-primary-200 bg-primary-50 text-primary-700 shadow'
@@ -318,7 +320,7 @@ function ChatSidebar({
                 key={ch.id}
                 label={ch.name}
                 active={active?.id === ch.id}
-                onClick={() => onSelect({ type: 'channel', id: ch.id, name: ch.name })}
+                onClick={() => select({ type: 'channel', id: ch.id, name: ch.name })}
                 badge={channelBadge(ch.id)}
                 icon={<MemberAvatarStack members={allMembers} />}
                 actions={
@@ -372,7 +374,7 @@ function ChatSidebar({
                     key={ch.id}
                     label={partnerName}
                     active={active?.id === ch.id}
-                    onClick={() => onSelect({ type: 'channel', id: ch.id, name: partnerName })}
+                    onClick={() => select({ type: 'channel', id: ch.id, name: partnerName })}
                     badge={channelBadge(ch.id)}
                     icon={
                       <span className={`w-5 h-5 rounded-full ${c.bg} ${c.text} text-[10px] font-semibold flex items-center justify-center shrink-0`}>
@@ -400,7 +402,7 @@ function ChatSidebar({
                   key={p.id}
                   label={p.title}
                   active={active?.id === p.id}
-                  onClick={() => onSelect({ type: 'project', id: p.id, name: p.title })}
+                  onClick={() => select({ type: 'project', id: p.id, name: p.title })}
                   badge={channelBadge(p.id)}
                 />
               )}
@@ -438,7 +440,7 @@ function ChatSidebar({
         onClose={() => setShowNewDM(false)}
         onCreated={(channelId, name) => {
           qc.invalidateQueries({ queryKey: ['channels'] })
-          onSelect({ type: 'channel', id: channelId, name })
+          select({ type: 'channel', id: channelId, name })
         }}
       />
 
