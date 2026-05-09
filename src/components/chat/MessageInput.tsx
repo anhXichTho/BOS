@@ -476,7 +476,10 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
       setResetSignal(s => s + 1)
       onClearBotReply?.()
       onClearReplyTo?.()
-      if (textareaRef.current) textareaRef.current.style.height = 'auto'
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto'
+        textareaRef.current.focus()
+      }
       qc.invalidateQueries({ queryKey: ['messages', contextId] })
 
       // If bot was invoked, call edge function
