@@ -130,12 +130,12 @@ export default function NavTabs() {
       {/* Mobile: bottom tab bar only — bell has moved to AppShell top bar.
           Round-9: pb-[env(safe-area-inset-bottom)] keeps the tab icons clear
           of the iOS home indicator on devices with no physical button. */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-neutral-200 h-14 flex items-stretch pb-[env(safe-area-inset-bottom)]">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-neutral-200 h-14 flex items-stretch pb-[env(safe-area-inset-bottom)] overflow-hidden">
         {[...tabs, settingsTab].map(({ to, icon: Icon, label }) => {
           const active = isActive(to)
           const showDot = (to === '/chat' && totalUnread > 0) || (to === '/workflows' && pendingApprovals > 0)
           return (
-            <NavLink key={to} to={to} className={mobileTabClass(active)}>
+            <NavLink key={to} to={to} className={`${mobileTabClass(active)} min-w-0 overflow-hidden`}>
               {/* Active top-line indicator */}
               {active && (
                 <span className="absolute top-0 left-4 right-4 h-[2px] bg-primary-600 rounded-b-full" />
