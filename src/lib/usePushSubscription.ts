@@ -29,6 +29,8 @@ export type PushPermission = NotificationPermission | 'unsupported'
 export interface PushSubscriptionState {
   /** true if the browser supports push notifications */
   isSupported: boolean
+  /** true on iOS (WebKit) — push only works after Add to Home Screen on iOS 16.4+ */
+  isIOS: boolean
   /** 'default' | 'granted' | 'denied' | 'unsupported' */
   permission: PushPermission
   /** true if a push subscription is currently active */
@@ -47,6 +49,12 @@ export function usePushSubscription(): PushSubscriptionState {
     'serviceWorker'    in navigator &&
     'PushManager'      in window &&
     !!VAPID_PUBLIC_KEY
+
+  // iOS (iPhone/iPad) uses WebKit — PushManager is only available when running
+  // as an installed PWA (Add to Home Screen) on iOS 16.4+. Export this flag so
+  // the UI can show a helpful "install as PWA" hint instead of hiding the section.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
 
   const [permission, setPermission] = useState<PushPermission>('default')
   const [subscribed, setSubscribed] = useState(false)
@@ -121,5 +129,5 @@ export function usePushSubscription(): PushSubscriptionState {
     }
   }, [])
 
-  return { isSupported, permission, subscribed, loading, subscribe, unsubscribe }
+  return { isSupported, isIOS, permission, subscribed, loading, subscribe, unsubscribe }
 }

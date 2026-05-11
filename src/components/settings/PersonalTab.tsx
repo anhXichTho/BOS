@@ -1,4 +1,4 @@
-import { Bell, BellOff, BellRing, Send } from 'lucide-react'
+import { Bell, BellOff, BellRing, Send, Smartphone } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../ui/Toast'
 import { usePushSubscription } from '../../lib/usePushSubscription'
@@ -140,7 +140,7 @@ export default function PersonalTab() {
       </section>
 
       {/* Push notifications */}
-      {push.isSupported && push.permission !== 'unsupported' && (
+      {(push.isSupported || push.isIOS) && (
         <section>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-600 mb-1">
             Thông báo đẩy
@@ -149,7 +149,15 @@ export default function PersonalTab() {
             Nhận thông báo khi có tin nhắn mới, đề cập hoặc yêu cầu duyệt — ngay cả khi app đang đóng.
           </p>
 
-          {push.permission === 'denied' ? (
+          {push.isIOS && !push.isSupported ? (
+            <div className="flex items-start gap-2 bg-sky-50 border border-sky-200 p-3 text-xs text-sky-700">
+              <Smartphone className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>
+                Trên iOS, thông báo đẩy chỉ hoạt động khi cài app vào màn hình chính.
+                Nhấn <strong>Chia sẻ → Thêm vào màn hình chính</strong> rồi mở lại app từ đó.
+              </span>
+            </div>
+          ) : push.permission === 'denied' ? (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700">
               <BellOff className="w-4 h-4 mt-0.5 shrink-0" />
               <span>
