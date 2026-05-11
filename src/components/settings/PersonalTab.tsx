@@ -168,11 +168,11 @@ export default function PersonalTab() {
           ) : push.permission === 'denied' ? (
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700">
               <BellOff className="w-4 h-4 mt-0.5 shrink-0" />
-              <span>
-                Thông báo đang bị chặn cho site này. Để mở lại:{' '}
-                <strong>Tap icon khoá 🔒 trên thanh địa chỉ → Quyền / Cài đặt trang → Thông báo → Cho phép</strong>,
-                rồi tải lại trang. (Trên máy tính: click icon 🔒 → Cài đặt trang → Thông báo → Cho phép.)
-              </span>
+              <div className="space-y-1.5">
+                <p>Thông báo đang bị chặn cho site này. Để mở lại:</p>
+                <p><strong>Android Chrome:</strong> Menu ⋮ (ba chấm) → <em>Cài đặt trang web</em> → <em>Thông báo</em> → <em>Cho phép</em> → tải lại trang.</p>
+                <p><strong>Máy tính:</strong> Click icon 🔒 trên thanh địa chỉ → <em>Cài đặt trang</em> → <em>Thông báo</em> → <em>Cho phép</em> → tải lại trang.</p>
+              </div>
             </div>
           ) : (
             <div className="border border-neutral-100 bg-white p-3 shadow-sm flex items-center justify-between gap-4">
