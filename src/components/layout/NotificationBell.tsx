@@ -172,7 +172,6 @@ export default function NotificationBell() {
   }, [open])
 
   const unreadCount = notifications.filter(n => !n.read_at).length
-  const totalBadge = unreadCount + pendingReminders.length
   const visible = filter === 'unread'
     ? notifications.filter(n => !n.read_at)
     : notifications
@@ -276,13 +275,16 @@ export default function NotificationBell() {
         title="Thông báo"
       >
         <Bell size={18} />
-        {totalBadge > 0 && (
+        {unreadCount > 0 && (
           <span
             className="absolute top-2 right-2 min-w-[16px] h-[16px] px-1 rounded-full text-white text-[9px] font-bold flex items-center justify-center"
             style={{ background: 'var(--color-danger, #C9534B)' }}
           >
-            {totalBadge > 9 ? '9+' : totalBadge}
+            {unreadCount > 9 ? '9+' : unreadCount}
           </span>
+        )}
+        {unreadCount === 0 && pendingReminders.length > 0 && (
+          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-amber-400 border border-white" />
         )}
       </button>
 
