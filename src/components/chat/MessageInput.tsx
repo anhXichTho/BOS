@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send, Paperclip, X, Loader2, Type, GitBranch, MoreHorizontal, Bot, CornerDownLeft, Smile, CheckSquare } from 'lucide-react'
 import StickerPicker from './StickerPicker'
@@ -69,6 +69,7 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   const { data: allProfiles = [] } = useQuery({
     queryKey: ['profiles'],
@@ -154,18 +155,13 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
     ? allProfiles.filter(p => p.full_name.toLowerCase().includes(mentionSearch.toLowerCase())).slice(0, 6)
     : []
 
-  // Round-9: @all option (channels + projects only — not DMs)
-  const supportsAtAll = !isSelfChat && contextType !== 'project' ? false : (!isSelfChat)
-  // Show @all only in channels (not DMs, not personal)
-  const showAtAll = !isSelfChat && contextType === 'channel' && mentionSearch !== null
+  // Show @all in channels + project threads (not DMs, not personal self-chat)
+  const showAtAll = !isSelfChat && (contextType === 'channel' || contextType === 'project') && mentionSearch !== null
                     && (mentionSearch === '' || 'all'.startsWith(mentionSearch.toLowerCase()))
   // Group mention results — same fuzzy filter
   const groupResults = (!isSelfChat && mentionSearch !== null)
     ? allGroups.filter(g => g.name.toLowerCase().includes(mentionSearch.toLowerCase())).slice(0, 5)
     : []
-  // Suppress reference to keep type-checker happy when feature toggles
-  void supportsAtAll
-
   // Flat index offsets for keyboard navigation in the mention dropdown
   const mentionGroupOffset = showAtAll ? 1 : 0
   const mentionProfileOffset = mentionGroupOffset + groupResults.length
@@ -178,6 +174,13 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
           : t.name.toLowerCase().includes(workflowSearch.toLowerCase())
       ).slice(0, 8)
     : []
+
+  // Auto-scroll highlighted dropdown item into view when navigating with arrow keys
+  useEffect(() => {
+    if (highlightedIdx < 0 || !dropdownRef.current) return
+    const el = dropdownRef.current.querySelector<HTMLElement>('[data-hi="true"]')
+    el?.scrollIntoView({ block: 'nearest' })
+  }, [highlightedIdx])
 
   function handleTextareaInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const val = e.target.value
@@ -579,16 +582,17 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
 
       {/* Workflow slash command dropdown */}
       {workflowResults.length > 0 && (
-        <div className="absolute bottom-full left-3 right-3 mb-1 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden z-10">
+        <div ref={dropdownRef} className="absolute bottom-full left-3 right-3 mb-1 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden z-10">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 px-3 pt-2 pb-1">
-            Chạy workflow — <span className="normal-case font-normal">Enter để chọn</span>
+            Chạy workflow — <span className="normal-case font-normal">↑↓ chọn · Enter xác nhận</span>
           </p>
           {workflowResults.map((t, i) => (
             <button
               key={t.id}
+              data-hi={highlightedIdx === i ? 'true' : undefined}
               onMouseDown={e => e.preventDefault()}
               onClick={() => selectWorkflowFromDropdown(t)}
-              className={`w-full text-left px-3 py-2 hover:bg-primary-50 hover:text-primary-700 flex items-start gap-2 ${highlightedIdx === i ? 'bg-primary-50 text-primary-700' : ''}`}
+              className={`w-full text-left px-3 py-2 hover:bg-neutral-100 flex items-start gap-2 ${highlightedIdx === i ? 'bg-neutral-100 font-medium' : ''}`}
             >
               <GitBranch size={13} className="text-primary-400 shrink-0 mt-0.5" />
               <div className="min-w-0">
@@ -607,16 +611,17 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
 
       {/* Bot picker dropdown (personal channel only) */}
       {botResults.length > 0 && (
-        <div className="absolute bottom-full left-3 right-3 mb-1 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden z-10">
+        <div ref={dropdownRef} className="absolute bottom-full left-3 right-3 mb-1 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden z-10">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 px-3 pt-2 pb-1">
             Chọn bot
           </p>
           {botResults.map((bot, i) => (
             <button
               key={bot.id}
+              data-hi={highlightedIdx === i ? 'true' : undefined}
               onMouseDown={e => e.preventDefault()}
               onClick={() => selectBotFromDropdown(bot)}
-              className={`w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700 flex items-center gap-2 ${highlightedIdx === i ? 'bg-primary-50 text-primary-700' : ''}`}
+              className={`w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 flex items-center gap-2 ${highlightedIdx === i ? 'bg-neutral-100 font-medium text-neutral-900' : ''}`}
             >
               <Bot size={13} className="text-primary-400 shrink-0" />
               <span>{bot.name}</span>
@@ -630,19 +635,20 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
 
       {/* User mention dropdown (non-personal channels) — Round-9 includes @all + @group */}
       {(showAtAll || groupResults.length > 0 || mentionResults.length > 0) && (
-        <div className="absolute bottom-full left-3 right-3 mb-1 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden z-10 max-h-72 overflow-y-auto">
+        <div ref={dropdownRef} className="absolute bottom-full left-3 right-3 mb-1 bg-white border border-neutral-200 rounded-lg shadow-lg overflow-hidden z-10 max-h-72 overflow-y-auto">
           {showAtAll && (
             <>
               <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 bg-neutral-50 border-b border-neutral-100">
                 Cả nhóm
               </div>
               <button
+                data-hi={highlightedIdx === 0 ? 'true' : undefined}
                 onMouseDown={e => e.preventDefault()}
                 onClick={insertAtAll}
-                className={`w-full text-left px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 flex items-center gap-2 ${highlightedIdx === 0 ? 'bg-purple-50' : ''}`}
+                className={`w-full text-left px-3 py-2 text-sm font-medium text-purple-700 hover:bg-purple-50 flex items-center gap-2 ${highlightedIdx === 0 ? 'bg-purple-100 ring-1 ring-inset ring-purple-200' : ''}`}
               >
                 <span className="font-semibold">@all</span>
-                <span className="text-[11px] text-neutral-500">Gửi thông báo cho tất cả thành viên trong kênh</span>
+                <span className="text-[11px] text-neutral-500 font-normal">Gửi thông báo cho tất cả thành viên</span>
               </button>
             </>
           )}
@@ -654,9 +660,10 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
               {groupResults.map((g, i) => (
                 <button
                   key={g.id}
+                  data-hi={highlightedIdx === mentionGroupOffset + i ? 'true' : undefined}
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => insertAtGroup(g)}
-                  className={`w-full text-left px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 flex items-center gap-2 ${highlightedIdx === mentionGroupOffset + i ? 'bg-purple-50' : ''}`}
+                  className={`w-full text-left px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 flex items-center gap-2 ${highlightedIdx === mentionGroupOffset + i ? 'bg-purple-100 ring-1 ring-inset ring-purple-200' : ''}`}
                 >
                   <span className="font-semibold">@{g.name.replace(/\s+/g, '-')}</span>
                   <span className="text-[11px] text-neutral-500 truncate">{g.name}</span>
@@ -674,9 +681,10 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
               {mentionResults.map((p, i) => (
                 <button
                   key={p.id}
+                  data-hi={highlightedIdx === mentionProfileOffset + i ? 'true' : undefined}
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => insertMention(p)}
-                  className={`w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700 ${highlightedIdx === mentionProfileOffset + i ? 'bg-primary-50 text-primary-700' : ''}`}
+                  className={`w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-neutral-100 ${highlightedIdx === mentionProfileOffset + i ? 'bg-neutral-100 font-medium text-neutral-900' : ''}`}
                 >
                   {p.full_name}
                 </button>
