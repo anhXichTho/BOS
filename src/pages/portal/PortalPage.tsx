@@ -36,7 +36,7 @@ function LoginGate({
         : false
 
       if (usernameOk && passwordOk) {
-        sessionStorage.setItem(`portal_verified_${project.slug}`, username.trim())
+        sessionStorage.setItem(`portal_verified_${project.public_token}`, username.trim())
         onVerified(username.trim())
       } else {
         setError('Username hoặc mật khẩu không đúng')
@@ -338,7 +338,7 @@ export default function PortalPage() {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .eq('slug', slug!)
+        .eq('public_token', slug!)
         .eq('portal_enabled', true)
         .maybeSingle()
       if (error) throw error
