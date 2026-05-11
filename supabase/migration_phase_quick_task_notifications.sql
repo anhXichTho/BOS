@@ -173,6 +173,7 @@ alter table public.notifications add constraint notifications_kind_check check (
   'form_submitted',
   'doc_shared',
   'generic',
+  'reminder',
   'task_assigned',
   'task_completed'
 ));
