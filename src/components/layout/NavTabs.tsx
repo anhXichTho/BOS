@@ -4,7 +4,6 @@ import {
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import NotificationBell from './NotificationBell'
-import ReminderBell from './ReminderBell'
 import { useOpenDrawer } from './AppShell'
 import { useChatTotalUnread } from '../../lib/useChatUnread'
 import { usePendingApprovalCount } from '../../lib/usePendingApprovals'
@@ -83,9 +82,8 @@ export default function NavTabs() {
 
         <div className="my-1.5 mx-2 h-px bg-neutral-100" />
 
-        {/* Bell row — notification bell + reminder bell */}
-        <div className="flex items-center justify-center gap-1 px-1">
-          <ReminderBell />
+        {/* Bell row */}
+        <div className="flex items-center justify-center px-1">
           <NotificationBell />
         </div>
 

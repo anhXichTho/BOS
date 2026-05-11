@@ -2,19 +2,28 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
-  Bell, X, Check, AtSign, FolderKanban, GitBranch, Calendar, ClipboardList, FileText, Inbox, CheckSquare, MessageSquare,
+  Bell, X, Check, AtSign, FolderKanban, GitBranch, Calendar, ClipboardList, FileText, Inbox, CheckSquare, MessageSquare, Clock,
 } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { openPanel } from '../../lib/sidePanelStore'
 import type { Notification, NotificationKind } from '../../types'
 
+interface PendingReminder {
+  id: string
+  title: string
+  fire_at: string
+  source_context_type: string | null
+  source_context_id: string | null
+  source_message_id: string | null
+}
+
 /**
  * Bell + drawer for in-app notifications. Subscribes to Supabase Realtime
  * on the notifications table filtered by user_id; falls back to a 30s
- * polling refetch.
+ * polling refetch. Also shows pending (unfired) reminders from the reminders table.
  */
 export default function NotificationBell() {
   const { user } = useAuth()
@@ -55,6 +64,29 @@ export default function NotificationBell() {
         return [] as Notification[]
       }
       return (data ?? []) as Notification[]
+    },
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+    retry: false,
+  })
+
+  // Pending (not yet fired) reminders created by this user
+  const { data: pendingReminders = [] } = useQuery<PendingReminder[]>({
+    queryKey: ['reminders-pending', user?.id],
+    queryFn: async () => {
+      if (!user) return []
+      const { data, error } = await supabase
+        .from('reminders')
+        .select('id,title,fire_at,source_context_type,source_context_id,source_message_id')
+        .eq('created_by', user.id)
+        .is('fired_at', null)
+        .order('fire_at', { ascending: true })
+        .limit(20)
+      if (error) {
+        console.warn('[NotificationBell] reminders query failed:', error.message)
+        return []
+      }
+      return (data ?? []) as PendingReminder[]
     },
     enabled: !!user?.id,
     refetchInterval: 30_000,
@@ -140,6 +172,7 @@ export default function NotificationBell() {
   }, [open])
 
   const unreadCount = notifications.filter(n => !n.read_at).length
+  const totalBadge = unreadCount + pendingReminders.length
   const visible = filter === 'unread'
     ? notifications.filter(n => !n.read_at)
     : notifications
@@ -201,6 +234,16 @@ export default function NotificationBell() {
           navigate('/workflows')
         }
         break
+      case 'reminder':
+        if (meta.source_context_type && meta.source_context_id) {
+          const params = new URLSearchParams({
+            ctx_type: meta.source_context_type,
+            ctx_id: meta.source_context_id,
+          })
+          if (meta.source_message_id) params.set('msg_id', meta.source_message_id)
+          navigate(`/chat?${params.toString()}`)
+        }
+        break
       case 'schedule_fired':
         navigate('/workflows')
         break
@@ -233,12 +276,12 @@ export default function NotificationBell() {
         title="Thông báo"
       >
         <Bell size={18} />
-        {unreadCount > 0 && (
+        {totalBadge > 0 && (
           <span
             className="absolute top-2 right-2 min-w-[16px] h-[16px] px-1 rounded-full text-white text-[9px] font-bold flex items-center justify-center"
             style={{ background: 'var(--color-danger, #C9534B)' }}
           >
-            {unreadCount > 9 ? '9+' : unreadCount}
+            {totalBadge > 9 ? '9+' : totalBadge}
           </span>
         )}
       </button>
@@ -296,12 +339,59 @@ export default function NotificationBell() {
 
           {/* List */}
           <div className="flex-1 overflow-y-auto">
-            {visible.length === 0 ? (
+            {/* Pending reminders section */}
+            {pendingReminders.length > 0 && (
+              <div>
+                <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 bg-neutral-50 border-b border-neutral-100">
+                  🔔 Nhắc việc đang chờ ({pendingReminders.length})
+                </div>
+                <ul className="divide-y divide-neutral-100">
+                  {pendingReminders.map(r => (
+                    <li key={r.id}>
+                      <button
+                        onClick={() => {
+                          setOpen(false)
+                          if (r.source_context_type && r.source_context_id) {
+                            const params = new URLSearchParams({
+                              ctx_type: r.source_context_type,
+                              ctx_id: r.source_context_id,
+                            })
+                            if (r.source_message_id) params.set('msg_id', r.source_message_id)
+                            navigate(`/chat?${params.toString()}`)
+                          }
+                        }}
+                        className="w-full text-left flex items-start gap-2.5 px-3 py-2.5 hover:bg-amber-50/40 transition-colors"
+                      >
+                        <div className="w-7 h-7 rounded-md flex items-center justify-center shrink-0 mt-0.5 bg-white border border-neutral-200 text-amber-500">
+                          <Clock size={13} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-neutral-800 truncate">{r.title}</p>
+                          <p className="text-[10px] text-neutral-400 mt-0.5">
+                            {format(new Date(r.fire_at), 'HH:mm · dd/MM', { locale: vi })}
+                            {' · '}
+                            {formatDistanceToNow(new Date(r.fire_at), { addSuffix: true, locale: vi })}
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {visible.length === 0 && pendingReminders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-neutral-400">
                 <Inbox size={28} className="mb-2 text-neutral-300" />
                 <p className="text-xs">{filter === 'unread' ? 'Không có thông báo chưa đọc.' : 'Chưa có thông báo nào.'}</p>
               </div>
-            ) : (
+            ) : visible.length === 0 ? null : (
+              <>
+                {pendingReminders.length > 0 && (
+                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 bg-neutral-50 border-b border-neutral-100">
+                    Thông báo
+                  </div>
+                )}
               <ul className="divide-y divide-neutral-100">
                 {visible.map(n => {
                   const meta = (n.payload ?? {}) as Record<string, string | undefined>
@@ -408,7 +498,8 @@ export default function NotificationBell() {
                   )
                 })}
               </ul>
-            )}
+            </>
+          )}
           </div>
         </div>
       )}
@@ -441,6 +532,8 @@ function KindIcon({ kind }: { kind: NotificationKind }) {
     case 'task_assigned':
     case 'task_completed':
       return <div className={`${cls} text-primary-600`}><CheckSquare size={13} /></div>
+    case 'reminder':
+      return <div className={`${cls} text-amber-500`}><Clock size={13} /></div>
     case 'doc_shared':
       return <div className={`${cls} text-cyan-600`}><FileText size={13} /></div>
     default:
