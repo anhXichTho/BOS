@@ -139,31 +139,6 @@ export default function PersonalTab() {
         </div>
       </section>
 
-      {/* Sidebar pin */}
-      <section>
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-600 mb-1">Sidebar (desktop)</h3>
-        <p className="text-[11px] text-neutral-500 mb-3">
-          Khi tắt: sidebar mở rộng khi hover, tự thu khi rời chuột. Khi bật: luôn mở.
-        </p>
-        <label className="flex items-center gap-2.5 cursor-pointer select-none w-fit">
-          <span className="text-sm text-neutral-700">Pin sidebar</span>
-          <button
-            type="button"
-            onClick={() => setPinned(!sidebarPinned)}
-            className={`w-9 h-5 rounded-full relative transition-colors ${
-              sidebarPinned ? 'bg-primary-600' : 'bg-neutral-200'
-            }`}
-            aria-pressed={sidebarPinned}
-          >
-            <span
-              className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
-                sidebarPinned ? 'translate-x-4' : 'translate-x-0.5'
-              }`}
-            />
-          </button>
-        </label>
-      </section>
-
       {/* Push notifications */}
       {push.isSupported && push.permission !== 'unsupported' && (
         <section>
@@ -232,6 +207,31 @@ export default function PersonalTab() {
           )}
         </section>
       )}
+
+      {/* Sidebar pin */}
+      <section>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-600 mb-1">Sidebar (desktop)</h3>
+        <p className="text-[11px] text-neutral-500 mb-3">
+          Khi tắt: sidebar mở rộng khi hover, tự thu khi rời chuột. Khi bật: luôn mở.
+        </p>
+        <label className="flex items-center gap-2.5 cursor-pointer select-none w-fit">
+          <span className="text-sm text-neutral-700">Pin sidebar</span>
+          <button
+            type="button"
+            onClick={() => setPinned(!sidebarPinned)}
+            className={`w-9 h-5 rounded-full relative transition-colors ${
+              sidebarPinned ? 'bg-primary-600' : 'bg-neutral-200'
+            }`}
+            aria-pressed={sidebarPinned}
+          >
+            <span
+              className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-transform ${
+                sidebarPinned ? 'translate-x-4' : 'translate-x-0.5'
+              }`}
+            />
+          </button>
+        </label>
+      </section>
     </div>
   )
 }

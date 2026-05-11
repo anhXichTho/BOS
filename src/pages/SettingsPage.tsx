@@ -87,7 +87,7 @@ export default function SettingsPage() {
         </div>
       }
     >
-      <div className="p-4 pb-10 sm:p-6 sm:pb-12 max-w-3xl">
+      <div className="p-4 pb-[100px] sm:p-6 sm:pb-[100px] max-w-3xl">
         <h1 className="text-lg font-serif font-medium text-neutral-800 mb-6">
           {tab === 'team'      && 'Thành viên & Phân quyền'}
           {tab === 'hierarchy' && 'Phân cấp & Groups'}
