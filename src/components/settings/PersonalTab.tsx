@@ -169,9 +169,9 @@ export default function PersonalTab() {
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 p-3 text-xs text-amber-700">
               <BellOff className="w-4 h-4 mt-0.5 shrink-0" />
               <span>
-                Trình duyệt đang chặn thông báo. Vào <strong>Cài đặt trình duyệt → Quyền trang web</strong> để cấp
-                quyền cho <em>{typeof window !== 'undefined' ? window.location.hostname : 'app'}</em>, rồi tải lại
-                trang.
+                Thông báo đang bị chặn cho site này. Để mở lại:{' '}
+                <strong>Tap icon khoá 🔒 trên thanh địa chỉ → Quyền / Cài đặt trang → Thông báo → Cho phép</strong>,
+                rồi tải lại trang. (Trên máy tính: click icon 🔒 → Cài đặt trang → Thông báo → Cho phép.)
               </span>
             </div>
           ) : (
