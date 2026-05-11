@@ -1,6 +1,8 @@
 -- migration_phase_quick_task_notifications.sql (round-9b — migration #32)
 --
 -- Extends task notification coverage:
+--   0. fan_out_task_assignment update — also notify on self-assignment so
+--      users get a bell reminder for tasks they created for themselves.
 --   1. fan_out_task_completed  — notify creator when a task is marked done
 --   2. fan_out_task_assignment_group — notify each group member when a task
 --      is assigned to their group (was silent before; grouped into bell + push)
@@ -8,6 +10,42 @@
 --      step_rejected so those kinds don't fail the constraint on insert.
 --
 -- Idempotent — safe to re-run.
+
+-- ── 0. Update fan_out_task_assignment to include self-assignment ────────────
+-- Original trigger (migration #31) skipped self-assignment. Users who create
+-- tasks for themselves now get a bell notification as a reminder.
+
+create or replace function public.fan_out_task_assignment()
+returns trigger language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare
+  creator_name text;
+begin
+  -- Only handle user-assignee rows; group fan-out handled by separate trigger
+  if new.assignee_user_id is null then
+    return new;
+  end if;
+
+  select coalesce(full_name, 'Ai đó') into creator_name
+    from public.profiles where id = new.created_by;
+
+  insert into public.notifications (user_id, kind, title, body, payload)
+  values (
+    new.assignee_user_id,
+    'task_assigned',
+    'Bạn có việc mới: ' || new.title,
+    case
+      when new.assignee_user_id = new.created_by then 'Việc bạn tự giao cho mình'
+      else coalesce(creator_name, 'Ai đó') || ' giao việc cho bạn'
+    end,
+    jsonb_build_object(
+      'task_id',           new.id,
+      'source_message_id', new.source_message_id
+    )
+  );
+
+  return new;
+end $$;
 
 -- ── 1. task_completed trigger ───────────────────────────────────────────────
 -- Fires when `status` changes TO 'done'.
