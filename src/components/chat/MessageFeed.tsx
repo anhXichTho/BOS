@@ -427,7 +427,7 @@ function MessageBubble({
   onScrollToParent?: (parentId: string) => void
 }) {
   const isBotMsg = msg.author_id === null && msg.payload?.kind === 'bot_response'
-  const authorName = isBotMsg ? 'Bot' : (msg.author?.full_name ?? 'Unknown')
+  const authorName = isBotMsg ? 'Bot' : (msg.author?.full_name ?? (msg as any).payload?.guest_name ?? 'Khách')
   const isOwn = !isBotMsg && !!currentUserId && msg.author_id === currentUserId
   const isPinned = !!msg.pinned_at
   const editWindowOpen = isOwn && msg.message_type === 'text' &&
