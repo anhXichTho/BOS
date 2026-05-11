@@ -861,6 +861,7 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
 
           <button
             onClick={handleSend}
+            onMouseDown={e => e.preventDefault()}
             disabled={sending || (!content.trim() && pendingFiles.length === 0)}
             className="bg-primary-600 text-white hover:bg-primary-700 disabled:opacity-40 rounded-lg p-2 transition-colors ml-1"
           >
