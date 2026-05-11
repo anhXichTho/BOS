@@ -113,7 +113,7 @@ export default function QuickTaskModal({ open, onClose, initialTitle, sourceMess
 
       const row: Record<string, unknown> = {
         title:             trimmed,
-        description_html:  richMode && description.trim() ? description : null,
+        description_html:  description.trim() ? description : null,
         assignee_user_id:  assigneeKind === 'user' ? assigneeUserId : null,
         assignee_group_id: assigneeKind === 'group' ? assigneeGroupId : null,
         due_date:          dueDate || null,
