@@ -35,8 +35,9 @@ function PushPromptBanner({ userId }: { userId: string }) {
   }
 
   async function handleEnable() {
-    await subscribe()
-    dismiss()
+    const err = await subscribe()
+    // Only dismiss if user granted or dismissed — keep banner if error
+    if (!err) dismiss()
   }
 
   if (!visible) return null

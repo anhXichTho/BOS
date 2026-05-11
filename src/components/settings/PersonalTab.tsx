@@ -56,12 +56,9 @@ export default function PersonalTab() {
       await push.unsubscribe()
       success('Đã tắt thông báo đẩy')
     } else {
-      await push.subscribe()
-      if (Notification.permission === 'denied') {
-        toastError('Trình duyệt đã chặn thông báo. Vui lòng cấp quyền trong cài đặt.')
-      } else if (Notification.permission === 'granted') {
-        success('Đã bật thông báo đẩy')
-      }
+      const err = await push.subscribe()
+      if (err) toastError(err)
+      else if (Notification.permission === 'granted') success('Đã bật thông báo đẩy')
     }
   }
 

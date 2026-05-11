@@ -36,8 +36,8 @@ export interface PushSubscriptionState {
   /** true if a push subscription is currently active */
   subscribed: boolean
   loading: boolean
-  /** Request permission + subscribe + persist to DB */
-  subscribe: () => Promise<void>
+  /** Request permission + subscribe + persist to DB. Returns null on success, error message on failure. */
+  subscribe: () => Promise<string | null>
   /** Unsubscribe from push + remove from DB */
   unsubscribe: () => Promise<void>
 }
@@ -69,28 +69,33 @@ export function usePushSubscription(): PushSubscriptionState {
       .catch(() => {/* migration not run yet or SW not available */})
   }, [isSupported])
 
-  const subscribe = useCallback(async () => {
-    if (!isSupported || !VAPID_PUBLIC_KEY) return
+  const subscribe = useCallback(async (): Promise<string | null> => {
+    if (!isSupported || !VAPID_PUBLIC_KEY) return 'Trình duyệt không hỗ trợ push.'
     setLoading(true)
     try {
       const perm = await Notification.requestPermission()
       setPermission(perm)
-      if (perm !== 'granted') return
+      if (perm === 'denied') return 'Trình duyệt đã chặn thông báo. Vào cài đặt trình duyệt để cấp quyền.'
+      if (perm !== 'granted') return null // user dismissed — silent
 
-      const reg = await navigator.serviceWorker.ready
+      // Timeout serviceWorker.ready so a hanging SW doesn't lock the button forever
+      const swReady = Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Service worker timeout')), 8000)
+        ),
+      ])
+      const reg = await swReady
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly:      true,
         applicationServerKey: urlB64ToArrayBuffer(VAPID_PUBLIC_KEY),
       })
 
-      const { endpoint }    = sub
-      const keys            = sub.toJSON().keys as { p256dh: string; auth: string }
+      const { endpoint } = sub
+      const keys = sub.toJSON().keys as { p256dh: string; auth: string }
 
       const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.user) {
-        console.warn('[push] no active session — cannot save subscription')
-        return
-      }
+      if (!session?.user) return 'Phiên đăng nhập hết hạn — vui lòng đăng nhập lại.'
 
       const { error } = await supabase
         .from('push_subscriptions')
@@ -99,14 +104,13 @@ export function usePushSubscription(): PushSubscriptionState {
           { onConflict: 'user_id,endpoint' }
         )
 
-      if (error) {
-        console.warn('[push] failed to save subscription:', error.message)
-        return
-      }
+      if (error) return `Lưu subscription thất bại: ${error.message}`
 
       setSubscribed(true)
+      return null
     } catch (err) {
       console.error('[push] subscribe error:', err)
+      return `Lỗi: ${(err as Error).message}`
     } finally {
       setLoading(false)
     }
