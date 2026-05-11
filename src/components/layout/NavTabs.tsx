@@ -1,9 +1,10 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   MessageSquare, FolderKanban, GitBranch, Settings, CheckSquare, FileText,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import NotificationBell from './NotificationBell'
+import { useOpenDrawer } from './AppShell'
 import { useChatTotalUnread } from '../../lib/useChatUnread'
 import { usePendingApprovalCount } from '../../lib/usePendingApprovals'
 
@@ -32,6 +33,8 @@ const settingsTab: Tab = { to: '/settings', icon: Settings, label: 'Cài đặt'
  */
 export default function NavTabs() {
   const location = useLocation()
+  const navigate = useNavigate()
+  const openDrawer = useOpenDrawer()
   const tabs = baseTabs
 
   // Unread chat count — drives the dot indicator on the Chat tab
@@ -134,8 +137,8 @@ export default function NavTabs() {
         {[...tabs, settingsTab].map(({ to, icon: Icon, label }) => {
           const active = isActive(to)
           const showDot = (to === '/chat' && totalUnread > 0) || (to === '/workflows' && pendingApprovals > 0)
-          return (
-            <NavLink key={to} to={to} className={`${mobileTabClass(active)} min-w-0 overflow-hidden`}>
+          const tabContent = (
+            <>
               {/* Active top-line indicator */}
               {active && (
                 <span className="absolute top-0 left-4 right-4 h-[2px] bg-primary-600 rounded-b-full" />
@@ -150,6 +153,23 @@ export default function NavTabs() {
                 )}
               </div>
               <span className="truncate max-w-full px-1">{label}</span>
+            </>
+          )
+          // Chat tab: tap while already on /chat → open drawer; otherwise navigate normally.
+          if (to === '/chat') {
+            return (
+              <button
+                key={to}
+                onClick={() => active ? openDrawer() : navigate('/chat')}
+                className={`${mobileTabClass(active)} min-w-0 overflow-hidden`}
+              >
+                {tabContent}
+              </button>
+            )
+          }
+          return (
+            <NavLink key={to} to={to} className={`${mobileTabClass(active)} min-w-0 overflow-hidden`}>
+              {tabContent}
             </NavLink>
           )
         })}

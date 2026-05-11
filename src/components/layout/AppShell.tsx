@@ -12,6 +12,10 @@ const DrawerCloseContext = createContext<() => void>(() => {})
 /** Call inside any sidebar component to close the mobile drawer when an item is selected. */
 export function useCloseDrawer() { return useContext(DrawerCloseContext) }
 
+const DrawerOpenContext = createContext<() => void>(() => {})
+/** Call from NavTabs (mobile) to open the drawer when already on /chat. */
+export function useOpenDrawer() { return useContext(DrawerOpenContext) }
+
 interface AppShellProps {
   sidebar?: ReactNode
   children: ReactNode
@@ -31,11 +35,13 @@ export default function AppShell({ sidebar, children, title }: AppShellProps) {
 
   const hasSidebar = !!sidebar
 
-  // Auto-open drawer when navigating to /chat (so channel list shows immediately).
-  // Close it when navigating to any other tab.
+  // Close drawer when navigating away from /chat.
+  // Opening is driven by NavTabs (tap tab again) or the hamburger ☰ button.
   useEffect(() => {
-    setDrawerOpen(hasSidebar && location.pathname.startsWith('/chat'))
-  }, [location.pathname, hasSidebar])
+    if (!location.pathname.startsWith('/chat')) {
+      setDrawerOpen(false)
+    }
+  }, [location.pathname])
 
   if (loading) {
     return (
@@ -53,7 +59,9 @@ export default function AppShell({ sidebar, children, title }: AppShellProps) {
       style={{ borderTop: '2px solid var(--color-accent-retro, #C1695B)' }}
     >
       {/* Desktop: vertical nav strip on left + sidebar */}
-      <NavTabs />
+      <DrawerOpenContext.Provider value={() => setDrawerOpen(true)}>
+        <NavTabs />
+      </DrawerOpenContext.Provider>
 
       {sidebar && (
         <div className="hidden md:flex">
