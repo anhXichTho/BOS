@@ -36,12 +36,21 @@ export default function AppShell({ sidebar, children, title }: AppShellProps) {
   const hasSidebar = !!sidebar
 
   // Close drawer when navigating away from /chat.
-  // Opening is driven by NavTabs (tap tab again) or the hamburger ☰ button.
+  // On /chat: auto-open if no active chat context is saved (first visit / fresh user).
+  // Otherwise opening is driven by NavTabs (tap tab again) or the hamburger ☰ button.
   useEffect(() => {
     if (!location.pathname.startsWith('/chat')) {
       setDrawerOpen(false)
+      return
     }
-  }, [location.pathname])
+    if (!hasSidebar) return
+    const userId = session?.user?.id
+    if (!userId) return
+    const saved = localStorage.getItem(`bos_chat_active_${userId}`)
+    if (!saved) {
+      setDrawerOpen(true)
+    }
+  }, [location.pathname, hasSidebar, session?.user?.id])
 
   if (loading) {
     return (
