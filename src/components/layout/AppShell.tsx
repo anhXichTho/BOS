@@ -5,6 +5,7 @@ import { Menu, X } from 'lucide-react'
 import NavTabs from './NavTabs'
 import Sidebar from './Sidebar'
 import NotificationBell from './NotificationBell'
+import ReminderBell from './ReminderBell'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSidePanel } from '../../lib/sidePanelStore'
 
@@ -120,6 +121,7 @@ export default function AppShell({ sidebar, children, title }: AppShellProps) {
           ) : (
             <div className="flex-1" />
           )}
+          <ReminderBell className="mr-1" />
           <NotificationBell />
         </div>
 
