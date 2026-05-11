@@ -540,9 +540,13 @@ export default function ChatPage() {
     }
   }, [location.search, navigate])
 
-  // Restore last active context from localStorage when user becomes available
+  // Restore last active context from localStorage when user becomes available.
+  // Skip if there are URL navigation params (ctx_id / dm) — the URL effect
+  // takes precedence and runs first; restoring from localStorage would overwrite it.
   useEffect(() => {
     if (!user?.id) return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('ctx_id') || params.get('dm')) return
     const saved = localStorage.getItem(`bos_chat_active_${user.id}`)
     if (!saved) return
     try {
