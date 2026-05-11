@@ -20,6 +20,8 @@ interface AuthContextValue {
   preferences: UserPreferences
   /** Persist a partial preferences patch to the profile row. */
   updatePreferences: (patch: Partial<UserPreferences>) => Promise<void>
+  /** Update editable profile fields (e.g. full_name) with optimistic UI. */
+  updateProfile: (patch: { full_name?: string }) => Promise<void>
   /** Personal channel ID (Phase 3). Null until migration runs or on error. */
   selfChatId: string | null
   loading: boolean
@@ -115,6 +117,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  async function updateProfile(patch: { full_name?: string }) {
+    if (!user) return
+    setProfile(p => (p ? { ...p, ...patch } : p))
+    const { error } = await supabase.from('profiles').update(patch).eq('id', user.id)
+    if (error) {
+      console.error('Failed to update profile:', error)
+      loadAuthState(user.id)
+    }
+  }
+
   const isAdmin    = profile?.role === 'admin'
   const isEditor   = profile?.role === 'editor'
   const canManageTemplates = isAdmin || isEditor || isLeader
@@ -125,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user, session, profile, isLeader, isAdmin, isEditor,
       canManageTemplates, groupIds, inGroup,
-      preferences, updatePreferences,
+      preferences, updatePreferences, updateProfile,
       selfChatId,
       loading, signOut,
     }}>
