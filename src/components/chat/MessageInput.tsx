@@ -543,6 +543,7 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
           {workflowResults.map(t => (
             <button
               key={t.id}
+              onMouseDown={e => e.preventDefault()}
               onClick={() => selectWorkflowFromDropdown(t)}
               className="w-full text-left px-3 py-2 hover:bg-primary-50 hover:text-primary-700 flex items-start gap-2"
             >
@@ -570,6 +571,7 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
           {botResults.map(bot => (
             <button
               key={bot.id}
+              onMouseDown={e => e.preventDefault()}
               onClick={() => selectBotFromDropdown(bot)}
               className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700 flex items-center gap-2"
             >
@@ -592,6 +594,7 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
                 Cả nhóm
               </div>
               <button
+                onMouseDown={e => e.preventDefault()}
                 onClick={insertAtAll}
                 className="w-full text-left px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 flex items-center gap-2"
               >
@@ -608,6 +611,7 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
               {groupResults.map(g => (
                 <button
                   key={g.id}
+                  onMouseDown={e => e.preventDefault()}
                   onClick={() => insertAtGroup(g)}
                   className="w-full text-left px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 flex items-center gap-2"
                 >
@@ -627,6 +631,7 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
               {mentionResults.map(p => (
                 <button
                   key={p.id}
+                  onMouseDown={e => e.preventDefault()}
                   onClick={() => insertMention(p)}
                   className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700"
                 >

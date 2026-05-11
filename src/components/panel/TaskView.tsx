@@ -95,7 +95,24 @@ export default function TaskView({ taskId }: Props) {
       toastError('Tin nhắn gốc không tồn tại')
       return
     }
-    navigate(`/chat?ctx_type=${msg.context_type}&ctx_id=${msg.context_id}&msg_id=${task!.source_message_id}`)
+    // Resolve the display name of the channel/project for the header
+    let ctxName = ''
+    if (msg.context_type === 'channel') {
+      const { data: ch } = await supabase
+        .from('chat_channels')
+        .select('name')
+        .eq('id', msg.context_id)
+        .maybeSingle()
+      ctxName = ch?.name ?? ''
+    } else if (msg.context_type === 'project') {
+      const { data: proj } = await supabase
+        .from('projects')
+        .select('title')
+        .eq('id', msg.context_id)
+        .maybeSingle()
+      ctxName = (proj as any)?.title ?? ''
+    }
+    navigate(`/chat?ctx_type=${msg.context_type}&ctx_id=${msg.context_id}&ctx_name=${encodeURIComponent(ctxName)}&msg_id=${task!.source_message_id}`)
     closePanel()
   }
 
