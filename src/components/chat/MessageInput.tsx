@@ -65,6 +65,7 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
   const [resetSignal, setResetSignal] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [selectedBot, setSelectedBot] = useState<BotOption | null>(null)
+  const [highlightedIdx, setHighlightedIdx] = useState(-1)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -165,6 +166,10 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
   // Suppress reference to keep type-checker happy when feature toggles
   void supportsAtAll
 
+  // Flat index offsets for keyboard navigation in the mention dropdown
+  const mentionGroupOffset = showAtAll ? 1 : 0
+  const mentionProfileOffset = mentionGroupOffset + groupResults.length
+
   // Workflow slash command picker: shown when content is just /...
   const workflowResults = workflowSearch !== null
     ? workflowTemplates.filter(t =>
@@ -196,6 +201,8 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
 
     // Only show picker when no bot is committed yet
     setMentionSearch(!selectedBot && mentionMatch ? mentionMatch[1] : null)
+    // Reset keyboard highlight whenever dropdown content may change
+    setHighlightedIdx(-1)
 
     const el = textareaRef.current
     if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 144) + 'px' }
@@ -522,8 +529,44 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
     }
   }
 
+  /** Returns an ordered flat list of actions for each visible dropdown item.
+   *  Used to drive ArrowUp/Down/Enter keyboard navigation. */
+  function getDropdownItems(): (() => void)[] {
+    if (botResults.length > 0) {
+      return botResults.map(bot => () => selectBotFromDropdown(bot))
+    }
+    if (workflowResults.length > 0) {
+      return workflowResults.map(t => () => selectWorkflowFromDropdown(t))
+    }
+    // Mention dropdown: @all → groups → individual profiles
+    const items: (() => void)[] = []
+    if (showAtAll) items.push(insertAtAll)
+    for (const g of groupResults) items.push(() => insertAtGroup(g))
+    for (const p of mentionResults) items.push(() => insertMention(p))
+    return items
+  }
+
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') { setMentionSearch(null); setWorkflowSearch(null); return }
+    const dropdownItems = getDropdownItems()
+    const dropdownOpen = dropdownItems.length > 0
+
+    if (e.key === 'ArrowDown' && dropdownOpen) {
+      e.preventDefault()
+      setHighlightedIdx(i => Math.min(i + 1, dropdownItems.length - 1))
+      return
+    }
+    if (e.key === 'ArrowUp' && dropdownOpen) {
+      e.preventDefault()
+      setHighlightedIdx(i => Math.max(i - 1, 0))
+      return
+    }
+    if (e.key === 'Enter' && dropdownOpen && highlightedIdx >= 0) {
+      e.preventDefault()
+      dropdownItems[highlightedIdx]()
+      setHighlightedIdx(-1)
+      return
+    }
+    if (e.key === 'Escape') { setMentionSearch(null); setWorkflowSearch(null); setHighlightedIdx(-1); return }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -540,12 +583,12 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
           <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 px-3 pt-2 pb-1">
             Chạy workflow — <span className="normal-case font-normal">Enter để chọn</span>
           </p>
-          {workflowResults.map(t => (
+          {workflowResults.map((t, i) => (
             <button
               key={t.id}
               onMouseDown={e => e.preventDefault()}
               onClick={() => selectWorkflowFromDropdown(t)}
-              className="w-full text-left px-3 py-2 hover:bg-primary-50 hover:text-primary-700 flex items-start gap-2"
+              className={`w-full text-left px-3 py-2 hover:bg-primary-50 hover:text-primary-700 flex items-start gap-2 ${highlightedIdx === i ? 'bg-primary-50 text-primary-700' : ''}`}
             >
               <GitBranch size={13} className="text-primary-400 shrink-0 mt-0.5" />
               <div className="min-w-0">
@@ -568,12 +611,12 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
           <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 px-3 pt-2 pb-1">
             Chọn bot
           </p>
-          {botResults.map(bot => (
+          {botResults.map((bot, i) => (
             <button
               key={bot.id}
               onMouseDown={e => e.preventDefault()}
               onClick={() => selectBotFromDropdown(bot)}
-              className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700 flex items-center gap-2"
+              className={`w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700 flex items-center gap-2 ${highlightedIdx === i ? 'bg-primary-50 text-primary-700' : ''}`}
             >
               <Bot size={13} className="text-primary-400 shrink-0" />
               <span>{bot.name}</span>
@@ -596,7 +639,7 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
               <button
                 onMouseDown={e => e.preventDefault()}
                 onClick={insertAtAll}
-                className="w-full text-left px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 flex items-center gap-2"
+                className={`w-full text-left px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 flex items-center gap-2 ${highlightedIdx === 0 ? 'bg-purple-50' : ''}`}
               >
                 <span className="font-semibold">@all</span>
                 <span className="text-[11px] text-neutral-500">Gửi thông báo cho tất cả thành viên trong kênh</span>
@@ -608,12 +651,12 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
               <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-neutral-500 bg-neutral-50 border-y border-neutral-100">
                 Nhóm thành viên
               </div>
-              {groupResults.map(g => (
+              {groupResults.map((g, i) => (
                 <button
                   key={g.id}
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => insertAtGroup(g)}
-                  className="w-full text-left px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 flex items-center gap-2"
+                  className={`w-full text-left px-3 py-2 text-sm text-purple-700 hover:bg-purple-50 flex items-center gap-2 ${highlightedIdx === mentionGroupOffset + i ? 'bg-purple-50' : ''}`}
                 >
                   <span className="font-semibold">@{g.name.replace(/\s+/g, '-')}</span>
                   <span className="text-[11px] text-neutral-500 truncate">{g.name}</span>
@@ -628,12 +671,12 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
                   Cá nhân
                 </div>
               )}
-              {mentionResults.map(p => (
+              {mentionResults.map((p, i) => (
                 <button
                   key={p.id}
                   onMouseDown={e => e.preventDefault()}
                   onClick={() => insertMention(p)}
-                  className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700"
+                  className={`w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-primary-700 ${highlightedIdx === mentionProfileOffset + i ? 'bg-primary-50 text-primary-700' : ''}`}
                 >
                   {p.full_name}
                 </button>
