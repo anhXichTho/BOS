@@ -140,16 +140,6 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
     retry: false,
   })
 
-  // Bot picker — Round-10: available in every chat. The bot reply gets
-  // posted to the same context_id and is visible to all members.
-  const botResults = (!selectedBot && mentionSearch !== null)
-    ? allBotOptions.filter(b =>
-        mentionSearch === ''
-          ? true
-          : b.name.toLowerCase().includes(mentionSearch.toLowerCase())
-      ).slice(0, 6)
-    : []
-
   // User mention picker: shown in non-personal channels
   const mentionResults = (!isSelfChat && mentionSearch !== null)
     ? allProfiles.filter(p => p.full_name.toLowerCase().includes(mentionSearch.toLowerCase())).slice(0, 6)
@@ -165,6 +155,21 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
   // Flat index offsets for keyboard navigation in the mention dropdown
   const mentionGroupOffset = showAtAll ? 1 : 0
   const mentionProfileOffset = mentionGroupOffset + groupResults.length
+
+  // Bot picker — in self-chat: always shown on @.
+  // In channels/projects: only shown when NO people/group/@all results exist for the
+  // current search term (e.g. typing a unique bot name with no user match).
+  // This prevents the bot dropdown from conflicting with the mention dropdown and
+  // fixes: (a) Enter selecting "Trợ lý chung" instead of @all, (b) arrow keys
+  // unable to reach individual profile entries.
+  const mentionDropdownHasContent = showAtAll || groupResults.length > 0 || mentionResults.length > 0
+  const botResults = (!selectedBot && mentionSearch !== null && (isSelfChat || !mentionDropdownHasContent))
+    ? allBotOptions.filter(b =>
+        mentionSearch === ''
+          ? true
+          : b.name.toLowerCase().includes(mentionSearch.toLowerCase())
+      ).slice(0, 6)
+    : []
 
   // Workflow slash command picker: shown when content is just /...
   const workflowResults = workflowSearch !== null
