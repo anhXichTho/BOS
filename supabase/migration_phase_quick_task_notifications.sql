@@ -178,3 +178,74 @@ alter table public.notifications add constraint notifications_kind_check check (
 ));
 
 notify pgrst, 'reload schema';
+
+-- ── 4. Due-date reminder (daily pg_cron) ────────────────────────────────────
+-- Runs every day at 01:00 UTC (08:00 Vietnam time).
+-- Sends a 'task_assigned' notification to assignees of open tasks due TODAY.
+-- For user-assigned tasks: notifies the assignee_user_id.
+-- For group-assigned tasks: notifies every group member.
+
+create or replace function public.send_task_due_reminders()
+returns void language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare
+  t        record;
+  member_id uuid;
+  grp_name  text;
+begin
+  -- User-assigned tasks due today (open only)
+  for t in
+    select qt.id, qt.title, qt.assignee_user_id
+    from public.quick_tasks qt
+    where qt.status = 'open'
+      and qt.due_date = current_date
+      and qt.assignee_user_id is not null
+  loop
+    insert into public.notifications (user_id, kind, title, body, payload)
+    values (
+      t.assignee_user_id,
+      'task_assigned',
+      '⏰ Việc đến hạn hôm nay: ' || t.title,
+      'Nhắc nhở: việc này cần hoàn thành hôm nay',
+      jsonb_build_object('task_id', t.id)
+    );
+  end loop;
+
+  -- Group-assigned tasks due today: fan-out to each member
+  for t in
+    select qt.id, qt.title, qt.assignee_group_id
+    from public.quick_tasks qt
+    where qt.status = 'open'
+      and qt.due_date = current_date
+      and qt.assignee_group_id is not null
+  loop
+    select coalesce(name, 'nhóm') into grp_name
+      from public.user_groups where id = t.assignee_group_id;
+
+    for member_id in
+      select user_id from public.user_group_members
+      where group_id = t.assignee_group_id
+    loop
+      insert into public.notifications (user_id, kind, title, body, payload)
+      values (
+        member_id,
+        'task_assigned',
+        '⏰ Việc đến hạn hôm nay: ' || t.title,
+        'Nhắc nhở nhóm ' || grp_name || ': việc này cần hoàn thành hôm nay',
+        jsonb_build_object('task_id', t.id)
+      );
+    end loop;
+  end loop;
+end $$;
+
+grant execute on function public.send_task_due_reminders() to authenticated;
+
+-- Schedule: 01:00 UTC = 08:00 Vietnam (UTC+7). Idempotent: unschedule first.
+select cron.unschedule('send_task_due_reminders') where exists (
+  select 1 from cron.job where jobname = 'send_task_due_reminders'
+);
+select cron.schedule(
+  'send_task_due_reminders',
+  '0 1 * * *',
+  $$select public.send_task_due_reminders();$$
+);
