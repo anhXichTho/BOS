@@ -1,7 +1,9 @@
-import { Bell, BellOff, BellRing, Send, Smartphone } from 'lucide-react'
+import { useState } from 'react'
+import { Bell, BellOff, BellRing, Send, Smartphone, Eye, EyeOff, KeyRound } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../ui/Toast'
 import { usePushSubscription } from '../../lib/usePushSubscription'
+import { supabase } from '../../lib/supabase'
 import type { FontChoice } from '../../types'
 
 /**
@@ -16,6 +18,41 @@ export default function PersonalTab() {
   const { preferences, updatePreferences, profile } = useAuth()
   const { success, error: toastError } = useToast()
   const push = usePushSubscription()
+
+  const [pwCurrent, setPwCurrent]       = useState('')
+  const [pwNew, setPwNew]               = useState('')
+  const [pwConfirm, setPwConfirm]       = useState('')
+  const [pwSaving, setPwSaving]         = useState(false)
+  const [showCurrent, setShowCurrent]   = useState(false)
+  const [showNew, setShowNew]           = useState(false)
+  const [showConfirm, setShowConfirm]   = useState(false)
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault()
+    if (pwNew.length < 6) { toastError('Mật khẩu mới phải có ít nhất 6 ký tự.'); return }
+    if (pwNew !== pwConfirm) { toastError('Mật khẩu mới và xác nhận không khớp.'); return }
+    setPwSaving(true)
+    try {
+      // Verify current password by re-authenticating
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser?.email) throw new Error('Không lấy được thông tin tài khoản.')
+      const { error: signInErr } = await supabase.auth.signInWithPassword({
+        email: authUser.email,
+        password: pwCurrent,
+      })
+      if (signInErr) { toastError('Mật khẩu hiện tại không đúng.'); return }
+
+      const { error: updateErr } = await supabase.auth.updateUser({ password: pwNew })
+      if (updateErr) throw updateErr
+
+      success('Đã đổi mật khẩu thành công.')
+      setPwCurrent(''); setPwNew(''); setPwConfirm('')
+    } catch (err) {
+      toastError('Lỗi: ' + (err as Error).message)
+    } finally {
+      setPwSaving(false)
+    }
+  }
 
   async function handleSendTestPush() {
     if (Notification.permission !== 'granted') {
@@ -84,6 +121,47 @@ export default function PersonalTab() {
         <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500 mb-2">Tài khoản</p>
         <p className="text-sm text-neutral-900">{profile?.full_name}</p>
         <p className="text-[11px] text-neutral-600 mt-0.5">Role: {profile?.role}</p>
+      </section>
+
+      {/* Change password */}
+      <section>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-600 mb-1 flex items-center gap-1.5">
+          <KeyRound size={13} /> Đổi mật khẩu
+        </h3>
+        <form onSubmit={handleChangePassword} className="space-y-3 max-w-sm">
+          <PwField
+            label="Mật khẩu hiện tại"
+            value={pwCurrent}
+            onChange={setPwCurrent}
+            show={showCurrent}
+            onToggleShow={() => setShowCurrent(v => !v)}
+            autoComplete="current-password"
+          />
+          <PwField
+            label="Mật khẩu mới"
+            value={pwNew}
+            onChange={setPwNew}
+            show={showNew}
+            onToggleShow={() => setShowNew(v => !v)}
+            autoComplete="new-password"
+            hint="Tối thiểu 6 ký tự"
+          />
+          <PwField
+            label="Xác nhận mật khẩu mới"
+            value={pwConfirm}
+            onChange={setPwConfirm}
+            show={showConfirm}
+            onToggleShow={() => setShowConfirm(v => !v)}
+            autoComplete="new-password"
+          />
+          <button
+            type="submit"
+            disabled={pwSaving || !pwCurrent || !pwNew || !pwConfirm}
+            className="px-4 py-1.5 text-sm bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-40 transition-colors"
+          >
+            {pwSaving ? 'Đang lưu…' : 'Đổi mật khẩu'}
+          </button>
+        </form>
       </section>
 
       {/* Theme — informational, no toggle */}
@@ -240,6 +318,42 @@ export default function PersonalTab() {
           </button>
         </label>
       </section>
+    </div>
+  )
+}
+
+function PwField({
+  label, value, onChange, show, onToggleShow, autoComplete, hint,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  show: boolean
+  onToggleShow: () => void
+  autoComplete?: string
+  hint?: string
+}) {
+  return (
+    <div>
+      <label className="block text-[11px] font-medium text-neutral-600 mb-1">{label}</label>
+      <div className="relative">
+        <input
+          type={show ? 'text' : 'password'}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          autoComplete={autoComplete}
+          className="w-full border border-neutral-200 focus:border-primary-400 focus:outline-none rounded px-3 py-1.5 text-sm pr-9"
+        />
+        <button
+          type="button"
+          onClick={onToggleShow}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600"
+          tabIndex={-1}
+        >
+          {show ? <EyeOff size={14} /> : <Eye size={14} />}
+        </button>
+      </div>
+      {hint && <p className="text-[10px] text-neutral-400 mt-0.5">{hint}</p>}
     </div>
   )
 }
