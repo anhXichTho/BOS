@@ -230,4 +230,84 @@ end $$;
 
 grant execute on function public.remind_task(uuid) to authenticated;
 
+-- ── 5. Channel fan-out on task creation ─────────────────────────────────────
+-- When a task is created from a chat message (source_message_id is set),
+-- notify every member of that channel so the whole group can track it.
+-- Skips: the creator (they made it) + the direct assignee (already notified).
+-- For private channels: uses chat_channel_members.
+-- For public/legacy channels (no member rows): notifies all profiles.
+
+create or replace function public.fan_out_task_to_channel()
+returns trigger language plpgsql security definer set search_path = public, pg_temp
+as $$
+declare
+  msg_context_type text;
+  msg_context_id   uuid;
+  ch_is_private    boolean;
+  creator_name     text;
+  member_id        uuid;
+begin
+  if new.source_message_id is null then
+    return new;
+  end if;
+
+  select context_type, context_id
+    into msg_context_type, msg_context_id
+    from public.chat_messages
+    where id = new.source_message_id;
+
+  if msg_context_type is distinct from 'channel' or msg_context_id is null then
+    return new;
+  end if;
+
+  select coalesce(is_private, false) into ch_is_private
+    from public.chat_channels where id = msg_context_id;
+
+  select coalesce(full_name, 'Ai đó') into creator_name
+    from public.profiles where id = new.created_by;
+
+  if ch_is_private then
+    -- Private channel: use explicit member list
+    for member_id in
+      select user_id from public.chat_channel_members
+      where channel_id = msg_context_id
+        and user_id is distinct from new.created_by
+        and user_id is distinct from new.assignee_user_id
+    loop
+      insert into public.notifications (user_id, kind, title, body, payload)
+      values (
+        member_id,
+        'task_assigned',
+        'Việc mới trong nhóm: ' || new.title,
+        creator_name || ' tạo việc trong nhóm chat',
+        jsonb_build_object('task_id', new.id, 'source_message_id', new.source_message_id)
+      );
+    end loop;
+  else
+    -- Public channel: fan-out to all profiles
+    for member_id in
+      select id from public.profiles
+      where id is distinct from new.created_by
+        and id is distinct from new.assignee_user_id
+    loop
+      insert into public.notifications (user_id, kind, title, body, payload)
+      values (
+        member_id,
+        'task_assigned',
+        'Việc mới trong nhóm: ' || new.title,
+        creator_name || ' tạo việc trong nhóm chat',
+        jsonb_build_object('task_id', new.id, 'source_message_id', new.source_message_id)
+      );
+    end loop;
+  end if;
+
+  return new;
+end $$;
+
+drop trigger if exists trg_fan_out_task_to_channel on public.quick_tasks;
+create trigger trg_fan_out_task_to_channel
+  after insert on public.quick_tasks
+  for each row
+  execute function public.fan_out_task_to_channel();
+
 notify pgrst, 'reload schema';
