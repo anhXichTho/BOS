@@ -155,28 +155,11 @@ create trigger trg_fan_out_task_assignment_group
   for each row
   execute function public.fan_out_task_assignment_group();
 
--- ── 3. Widen notifications_kind_check ──────────────────────────────────────
--- Previous constraint (migration #31) was missing dm_message / step_approved /
--- step_rejected, which would cause INSERT errors for those kinds.
+-- ── 3. Drop notifications_kind_check ───────────────────────────────────────
+-- The hardcoded CHECK constraint blocks new kind values every time we add a
+-- feature. Drop it entirely — the application layer validates kind values.
 
 alter table public.notifications drop constraint if exists notifications_kind_check;
-alter table public.notifications add constraint notifications_kind_check check (kind in (
-  'mention',
-  'dm_message',
-  'project_assigned',
-  'workflow_assigned',
-  'workflow_completed',
-  'approval_requested',
-  'step_approved',
-  'step_rejected',
-  'schedule_fired',
-  'form_submitted',
-  'doc_shared',
-  'generic',
-  'reminder',
-  'task_assigned',
-  'task_completed'
-));
 
 -- ── 4. remind_task RPC ──────────────────────────────────────────────────────
 -- Called by the frontend "Nhắc" button. Immediately inserts a notification
