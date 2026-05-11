@@ -1,16 +1,66 @@
 import { useState, useEffect, createContext, useContext } from 'react'
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { Menu, X } from 'lucide-react'
+import { Menu, X, Bell } from 'lucide-react'
 import NavTabs from './NavTabs'
 import Sidebar from './Sidebar'
 import NotificationBell from './NotificationBell'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSidePanel } from '../../lib/sidePanelStore'
+import { usePushSubscription } from '../../lib/usePushSubscription'
 
 const DrawerCloseContext = createContext<() => void>(() => {})
 /** Call inside any sidebar component to close the mobile drawer when an item is selected. */
 export function useCloseDrawer() { return useContext(DrawerCloseContext) }
+
+function PushPromptBanner({ userId }: { userId: string }) {
+  const { isSupported, permission, subscribed, loading, subscribe } = usePushSubscription()
+  const [visible, setVisible] = useState(false)
+
+  const storageKey = `bos_push_prompt_dismissed_${userId}`
+
+  useEffect(() => {
+    if (!isSupported) return
+    if (permission === 'granted' || permission === 'denied') return
+    if (subscribed) return
+    if (localStorage.getItem(storageKey)) return
+    // Small delay so the banner doesn't flash immediately on page load
+    const t = setTimeout(() => setVisible(true), 1500)
+    return () => clearTimeout(t)
+  }, [isSupported, permission, subscribed, storageKey])
+
+  function dismiss() {
+    localStorage.setItem(storageKey, '1')
+    setVisible(false)
+  }
+
+  async function handleEnable() {
+    await subscribe()
+    dismiss()
+  }
+
+  if (!visible) return null
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-2.5 bg-primary-50 border-b border-primary-100 text-sm shrink-0">
+      <Bell size={15} className="text-primary-500 shrink-0" />
+      <span className="flex-1 text-neutral-700">Bật thông báo đẩy để không bỏ lỡ tin nhắn và yêu cầu duyệt?</span>
+      <button
+        onClick={handleEnable}
+        disabled={loading}
+        className="shrink-0 bg-primary-600 text-white text-xs font-medium px-3 py-1.5 rounded hover:bg-primary-700 disabled:opacity-50 transition-colors"
+      >
+        {loading ? 'Đang bật…' : 'Bật'}
+      </button>
+      <button
+        onClick={dismiss}
+        className="shrink-0 text-xs text-neutral-400 hover:text-neutral-600 transition-colors"
+      >
+        Để sau
+      </button>
+    </div>
+  )
+}
 
 const DrawerOpenContext = createContext<() => void>(() => {})
 /** Call from NavTabs (mobile) to open the drawer when already on /chat. */
@@ -122,6 +172,8 @@ export default function AppShell({ sidebar, children, title }: AppShellProps) {
           )}
           <NotificationBell />
         </div>
+
+        {session?.user && <PushPromptBanner userId={session.user.id} />}
 
         <main className="flex-1 overflow-y-auto bg-white">
           {children}
