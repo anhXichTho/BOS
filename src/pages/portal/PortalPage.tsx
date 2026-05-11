@@ -199,6 +199,7 @@ function PortalContent({
         context_id:   project.id,
         message_type: 'text',
         content:      body,
+        payload:      { guest_name: guestName },
       })
       setGuestMessage('')
       setResetSignal(s => s + 1)
