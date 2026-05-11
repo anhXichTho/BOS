@@ -4,7 +4,7 @@
  */
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle2, RotateCcw, Trash2, ExternalLink, Loader2 } from 'lucide-react'
+import { CheckCircle2, RotateCcw, Trash2, ExternalLink, Loader2, BellRing } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
@@ -57,6 +57,15 @@ export default function TaskView({ taskId }: Props) {
     onError: (e: any) => toastError(e?.message ?? 'Có lỗi'),
   })
 
+  const remind = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('remind_task', { p_task_id: taskId })
+      if (error) throw error
+    },
+    onSuccess: () => success('Đã gửi nhắc nhở'),
+    onError: (e: any) => toastError(e?.message ?? 'Có lỗi'),
+  })
+
   const remove = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.from('quick_tasks').delete().eq('id', taskId)
@@ -82,6 +91,7 @@ export default function TaskView({ taskId }: Props) {
   const isAssignee = task.assignee_user_id === user?.id
   const canManage = isCreator || isAssignee || isAdmin || isEditor
   const canDelete = isCreator || isAdmin || isEditor
+  const canRemind = (isCreator || isAdmin || isEditor) && task.status === 'open'
 
   async function openSourceMessage() {
     if (!task!.source_message_id) return
@@ -193,6 +203,15 @@ export default function TaskView({ taskId }: Props) {
               className="text-[12px] px-3 py-1.5 rounded bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
             >
               Huỷ
+            </button>
+          )}
+          {canRemind && (
+            <button
+              onClick={() => remind.mutate()}
+              disabled={remind.isPending}
+              className="text-[12px] px-3 py-1.5 rounded bg-amber-50 text-amber-700 hover:bg-amber-100 inline-flex items-center gap-1 disabled:opacity-50"
+            >
+              <BellRing size={12} /> Nhắc
             </button>
           )}
           {canDelete && (
