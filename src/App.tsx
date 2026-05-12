@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToastProvider } from './components/ui/Toast'
 import ThemeApplier from './components/layout/ThemeApplier'
+import ErrorBoundary from './components/ErrorBoundary'
+import { supabase } from './lib/supabase'
 
 // ─── Eager (tiny, always needed) ─────────────────────────────────────────────
 import LoginPage from './pages/LoginPage'
@@ -50,6 +52,33 @@ function ExitGuard() {
   return null
 }
 
+// ─── Connection recovery on tab visibility change ────────────────────────────
+// When the tab becomes visible again after being idle for a while, Supabase's
+// realtime channels and auth session may be stale. Refresh the session and
+// invalidate all queries to force a refetch — prevents stuck/blank state.
+function ConnectionRecovery() {
+  useEffect(() => {
+    let lastHidden = 0
+    function handler() {
+      if (document.visibilityState === 'hidden') {
+        lastHidden = Date.now()
+        return
+      }
+      // Visible again — only recover if hidden for more than 30s
+      if (lastHidden && Date.now() - lastHidden > 30_000) {
+        supabase.auth.refreshSession().catch(err =>
+          console.warn('[recovery] refreshSession failed:', err)
+        )
+        queryClient.invalidateQueries()
+      }
+      lastHidden = 0
+    }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
+  }, [])
+  return null
+}
+
 // ─── Push notification click → React Router navigation ──────────────────────
 // Service worker (sw-push.js) posts {type:'bos-push-navigate', url} when user
 // taps a push notification while the app is already open. Using SPA navigate
@@ -90,13 +119,15 @@ const queryClient = new QueryClient({
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeApplier />
-        <ToastProvider>
-          <BrowserRouter>
-            <ExitGuard />
-            <PushNavListener />
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ThemeApplier />
+          <ToastProvider>
+            <BrowserRouter>
+              <ExitGuard />
+              <ConnectionRecovery />
+              <PushNavListener />
             {/* Global side panel — outside Routes so it persists across navigation */}
             <SidePanel />
             {/* Round-10: first-login welcome modal — auto-shows when profile.onboarded_at is null. */}
@@ -123,9 +154,10 @@ export default function App() {
                 <Route path="*"                      element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
-          </BrowserRouter>
-        </ToastProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+            </BrowserRouter>
+          </ToastProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
