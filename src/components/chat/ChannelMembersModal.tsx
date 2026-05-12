@@ -12,7 +12,7 @@
  */
 import { memo, useMemo, useState } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { Search, X, Users, Loader2, ShieldCheck } from 'lucide-react'
+import { Search, X, Users, Loader2, ShieldCheck, Trash2 } from 'lucide-react'
 import Modal from '../ui/Modal'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -115,6 +115,23 @@ export default memo(function ChannelMembersModal({ open, onClose, channel }: Pro
     onError: (err: Error) => toastError('Không thể gỡ: ' + err.message),
   })
 
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+
+  const deleteChannel = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('delete_channel', { p_channel_id: channel.id })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['channels'] })
+      qc.invalidateQueries({ queryKey: ['chat-total-unread'] })
+      success(`Đã xoá kênh "${channel.name}"`)
+      onClose()
+    },
+    onError: (err: Error) => toastError('Không thể xoá: ' + err.message),
+  })
+
   // ─── Filter candidates for invite ────────────────────────────────────────
   const memberIds = useMemo(() => new Set(members.map(m => m.user_id)), [members])
   const candidates = useMemo(() => {
@@ -179,6 +196,62 @@ export default memo(function ChannelMembersModal({ open, onClose, channel }: Pro
             ))}
           </ul>
         </section>
+
+        {/* Danger zone — delete channel (owner / admin / editor only) */}
+        {canManage && channel.channel_type !== 'dm' && channel.channel_type !== 'personal' && (
+          <section className="border border-red-200 bg-red-50/40 rounded-lg p-3 mt-3">
+            <h5 className="text-[10px] font-semibold uppercase tracking-wider text-red-700 mb-1 flex items-center gap-1">
+              <Trash2 size={11} /> Vùng nguy hiểm
+            </h5>
+            {!confirmDelete ? (
+              <>
+                <p className="text-[11px] text-neutral-600 mb-2">
+                  Xoá kênh sẽ xoá <strong>toàn bộ tin nhắn, file đính kèm, reaction</strong> trong kênh — không thể khôi phục.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setConfirmDelete(true); setConfirmText('') }}
+                  className="text-[11px] px-3 py-1.5 border border-red-300 text-red-700 hover:bg-red-100 rounded transition-colors"
+                >
+                  Xoá kênh này
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-[11px] text-neutral-700 mb-2">
+                  Gõ tên kênh <strong className="font-mono">{channel.name}</strong> để xác nhận:
+                </p>
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={e => setConfirmText(e.target.value)}
+                  placeholder={channel.name}
+                  className="w-full border border-red-200 rounded px-2 py-1.5 text-xs bg-white focus:outline-none focus:border-red-500 mb-2"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setConfirmDelete(false); setConfirmText('') }}
+                    disabled={deleteChannel.isPending}
+                    className="text-[11px] px-3 py-1.5 border border-neutral-200 text-neutral-600 hover:bg-neutral-100 rounded transition-colors"
+                  >
+                    Huỷ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteChannel.mutate()}
+                    disabled={deleteChannel.isPending || confirmText !== channel.name}
+                    className="text-[11px] px-3 py-1.5 bg-red-600 text-white hover:bg-red-700 rounded transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                  >
+                    {deleteChannel.isPending && <Loader2 size={11} className="animate-spin" />}
+                    Xoá vĩnh viễn
+                  </button>
+                </div>
+              </>
+            )}
+          </section>
+        )}
 
         {/* Invite — only when caller can manage */}
         {canManage && (
