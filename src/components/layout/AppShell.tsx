@@ -67,6 +67,11 @@ const DrawerOpenContext = createContext<() => void>(() => {})
 /** Call from NavTabs (mobile) to open the drawer when already on /chat. */
 export function useOpenDrawer() { return useContext(DrawerOpenContext) }
 
+const DrawerStateContext = createContext<boolean>(false)
+/** Read the current drawer-open state. Used by ChatPage to wire the
+ *  Messenger-style "back → open drawer first" UX on mobile. */
+export function useIsDrawerOpen() { return useContext(DrawerStateContext) }
+
 interface AppShellProps {
   sidebar?: ReactNode
   children: ReactNode
@@ -114,6 +119,7 @@ export default function AppShell({ sidebar, children, title }: AppShellProps) {
   if (!session) return <Navigate to="/login" replace />
 
   return (
+    <DrawerStateContext.Provider value={drawerOpen}>
     <div
       className="flex h-[100dvh] overflow-hidden bg-white"
       style={{ borderTop: '2px solid var(--color-accent-retro, #C1695B)' }}
@@ -181,5 +187,6 @@ export default function AppShell({ sidebar, children, title }: AppShellProps) {
         </main>
       </div>
     </div>
+    </DrawerStateContext.Provider>
   )
 }
