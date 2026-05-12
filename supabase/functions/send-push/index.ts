@@ -99,13 +99,19 @@ serve(async (req: Request) => {
     const payload = JSON.stringify({ title, body, url: url ?? '/', tag: tag ?? 'bos' })
 
     // Web Push options:
-    //   urgency='high'  — tells FCM/APNs to wake device immediately instead of
-    //                     batching with background fetches (critical for mobile
-    //                     where the OS aggressively delays low-urgency pushes).
-    //   TTL=3600        — push service holds the message for up to 1h if the
-    //                     device is offline, instead of dropping it instantly
-    //                     (the web-push default is 0 = deliver-or-drop).
-    const pushOptions = { TTL: 3600, urgency: 'high' as const }
+    //   TTL=3600              — push service holds the message for up to 1h if
+    //                           the device is offline (default is 0 = drop).
+    //   headers.Urgency='high' — tells FCM/APNs to wake the device immediately
+    //                           instead of batching (critical on mobile where
+    //                           OSes aggressively delay low-urgency pushes).
+    // We pass options via the standard Web Push protocol headers for maximum
+    // compatibility across web-push library versions.
+    const pushOptions = {
+      TTL: 3600,
+      headers: { Urgency: 'high' },
+    }
+
+    console.log('[send-push] payload=', payload, 'subs_count=', subs.length)
 
     const results = await Promise.allSettled(
       subs.map((sub: { endpoint: string; p256dh: string; auth: string }) =>
@@ -126,7 +132,9 @@ serve(async (req: Request) => {
         if (sc === 410 || sc === 404) {
           expiredEndpoints.push(subs[i].endpoint)
         }
-        console.error('[send-push] send failed status=' + sc + ' body=' + (err?.body ?? err?.message ?? String(result.reason)))
+        console.error('[send-push] send failed status=' + sc + ' body=' + (err?.body ?? err?.message ?? String(result.reason)) + ' endpoint=' + subs[i].endpoint.slice(0, 60))
+      } else {
+        console.log('[send-push] sent ok endpoint=' + subs[i].endpoint.slice(0, 60))
       }
     })
 
