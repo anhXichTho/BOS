@@ -98,11 +98,21 @@ serve(async (req: Request) => {
 
     const payload = JSON.stringify({ title, body, url: url ?? '/', tag: tag ?? 'bos' })
 
+    // Web Push options:
+    //   urgency='high'  — tells FCM/APNs to wake device immediately instead of
+    //                     batching with background fetches (critical for mobile
+    //                     where the OS aggressively delays low-urgency pushes).
+    //   TTL=3600        — push service holds the message for up to 1h if the
+    //                     device is offline, instead of dropping it instantly
+    //                     (the web-push default is 0 = deliver-or-drop).
+    const pushOptions = { TTL: 3600, urgency: 'high' as const }
+
     const results = await Promise.allSettled(
       subs.map((sub: { endpoint: string; p256dh: string; auth: string }) =>
         webpush.sendNotification(
           { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
           payload,
+          pushOptions,
         )
       )
     )
