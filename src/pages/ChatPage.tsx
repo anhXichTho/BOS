@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Plus, Hash, FolderKanban, UserCircle, ChevronDown, ChevronRight, Users } from 'lucide-react'
+import { Plus, Hash, FolderKanban, UserCircle, ChevronDown, ChevronRight, Users, Trash2, Loader2 } from 'lucide-react'
 import AppShell, { useCloseDrawer } from '../components/layout/AppShell'
 import { SidebarSection, SidebarItem } from '../components/layout/Sidebar'
 import MessageFeed from '../components/chat/MessageFeed'
@@ -79,6 +79,8 @@ function ChatSidebar({
   const [showNewChannel, setShowNewChannel] = useState(false)
   const [showNewDM, setShowNewDM] = useState(false)
   const [manageMembersForChannelId, setManageMembersForChannelId] = useState<string | null>(null)
+  const [confirmDeleteChannel, setConfirmDeleteChannel] = useState<{ id: string; name: string } | null>(null)
+  const [confirmText, setConfirmText] = useState('')
   // Round-7b: per-section "Xem thêm" expansion state.
   const [expanded, setExpanded] = useState<{ channels: boolean; dms: boolean; projects: boolean }>({
     channels: false, dms: false, projects: false,
@@ -243,6 +245,28 @@ function ChatSidebar({
   const canManageChannels = isAdmin || isEditor
   const selfUnread = selfChatId ? (unreadCountMap[selfChatId] ?? 0) : 0
 
+  /** Helper: can the current user delete this team channel? Owner OR admin/editor. */
+  function canDeleteChannel(ch: ChatChannel): boolean {
+    if (!user) return false
+    if (isAdmin || isEditor) return true
+    return ch.owner_id === user.id || ch.created_by === user.id
+  }
+
+  const deleteChannelMutation = useMutation({
+    mutationFn: async (channelId: string) => {
+      const { error } = await supabase.rpc('delete_channel', { p_channel_id: channelId })
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['channels'] })
+      qc.invalidateQueries({ queryKey: ['chat-total-unread'] })
+      success(`Đã xoá kênh "${confirmDeleteChannel?.name}"`)
+      setConfirmDeleteChannel(null)
+      setConfirmText('')
+    },
+    onError: (err: Error) => toastError('Không thể xoá: ' + err.message),
+  })
+
   // Round-9: resolver so search-hit channel labels show DM partner names,
   // not the literal "DM" stored in chat_channels.name.
   const channelById = useMemo(() => new Map(channels.map(ch => [ch.id, ch])), [channels])
@@ -324,14 +348,26 @@ function ChatSidebar({
                 badge={channelBadge(ch.id)}
                 icon={<MemberAvatarStack members={allMembers} />}
                 actions={
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); setManageMembersForChannelId(ch.id) }}
-                    className="text-neutral-400 hover:text-neutral-700 p-0.5"
-                    title="Quản lý thành viên"
-                  >
-                    <Users size={11} />
-                  </button>
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setManageMembersForChannelId(ch.id) }}
+                      className="text-neutral-400 hover:text-neutral-700 p-0.5"
+                      title="Quản lý thành viên"
+                    >
+                      <Users size={11} />
+                    </button>
+                    {canDeleteChannel(ch) && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteChannel({ id: ch.id, name: ch.name }); setConfirmText('') }}
+                        className="text-neutral-400 hover:text-red-600 p-0.5"
+                        title="Xoá kênh"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    )}
+                  </div>
                 }
               />
             )}
@@ -455,6 +491,55 @@ function ChatSidebar({
             channel_type: 'team',
           }}
         />
+      )}
+
+      {/* Delete channel confirmation modal */}
+      {confirmDeleteChannel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
+            <div className="px-4 py-3 border-b border-neutral-100 flex items-center gap-2">
+              <Trash2 size={14} className="text-red-600" />
+              <h3 className="text-sm font-semibold text-neutral-800">Xoá kênh "{confirmDeleteChannel.name}"</h3>
+            </div>
+            <div className="p-4 space-y-3">
+              <p className="text-[12px] text-neutral-700">
+                Hành động này sẽ xoá <strong>toàn bộ tin nhắn, file đính kèm, reaction</strong> trong kênh và <strong>không thể khôi phục</strong>.
+              </p>
+              <div>
+                <label className="block text-[11px] text-neutral-600 mb-1">
+                  Gõ tên kênh <span className="font-mono font-semibold text-neutral-800">{confirmDeleteChannel.name}</span> để xác nhận:
+                </label>
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={e => setConfirmText(e.target.value)}
+                  placeholder={confirmDeleteChannel.name}
+                  className="w-full border border-red-200 rounded px-2 py-1.5 text-sm bg-white focus:outline-none focus:border-red-500"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-4 py-3 border-t border-neutral-100">
+              <button
+                type="button"
+                onClick={() => { setConfirmDeleteChannel(null); setConfirmText('') }}
+                disabled={deleteChannelMutation.isPending}
+                className="text-xs px-3 py-1.5 border border-neutral-200 text-neutral-600 hover:bg-neutral-100 rounded transition-colors"
+              >
+                Huỷ
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteChannelMutation.mutate(confirmDeleteChannel.id)}
+                disabled={deleteChannelMutation.isPending || confirmText !== confirmDeleteChannel.name}
+                className="text-xs px-3 py-1.5 bg-red-600 text-white hover:bg-red-700 rounded transition-colors disabled:opacity-40 flex items-center gap-1.5"
+              >
+                {deleteChannelMutation.isPending && <Loader2 size={11} className="animate-spin" />}
+                Xoá vĩnh viễn
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )
