@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, memo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Plus, Hash, FolderKanban, UserCircle, ChevronDown, ChevronRight, Users } from 'lucide-react'
@@ -514,31 +514,68 @@ export default function ChatPage() {
   const { mutate: markRead } = useMarkChatRead()
   const location = useLocation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+
+  // Helper: resolve channel/project name from React Query cache (populated by
+  // ChatSidebar). Falls back to direct DB lookup if cache hasn't hydrated.
+  const resolveContextName = useCallback(
+    async (type: ContextType, id: string): Promise<string> => {
+      if (type === 'project') {
+        const cached = queryClient.getQueryData<Project[]>(['projects-list'])
+        const hit = cached?.find(p => p.id === id)
+        if (hit?.title) return hit.title
+        const { data } = await supabase.from('projects').select('title').eq('id', id).maybeSingle()
+        return data?.title ?? ''
+      }
+      const cached = queryClient.getQueryData<ChatChannel[]>(['channels'])
+      const hit = cached?.find(c => c.id === id)
+      if (hit?.name) return hit.name
+      const { data } = await supabase.from('chat_channels').select('name').eq('id', id).maybeSingle()
+      return data?.name ?? ''
+    },
+    [queryClient],
+  )
 
   // Handle navigation params from notification deep-links:
   //   ?dm=<channelId>&dm_name=<name>            — open a DM channel
   //   ?ctx_type=channel|project&ctx_id=<id>&ctx_name=<name>  — open a specific thread
+  // Push notifications omit ctx_name (built server-side), so we resolve names
+  // from cached queries (or fall back to a DB lookup) when missing.
   useEffect(() => {
     const params = new URLSearchParams(location.search)
 
     const dmChannel = params.get('dm')
-    const dmName    = params.get('dm_name') ?? 'DM'
     if (dmChannel) {
-      setActive({ type: 'channel', id: dmChannel, name: dmName })
+      const dmName = params.get('dm_name')
+      if (dmName) {
+        setActive({ type: 'channel', id: dmChannel, name: dmName })
+      } else {
+        setActive({ type: 'channel', id: dmChannel, name: '' })
+        resolveContextName('channel', dmChannel).then(name => {
+          if (name) setActive(a => (a && a.id === dmChannel ? { ...a, name } : a))
+        })
+      }
       navigate('/chat', { replace: true })
       return
     }
 
     const ctxType = params.get('ctx_type') as ContextType | null
     const ctxId   = params.get('ctx_id')
-    const ctxName = params.get('ctx_name') ?? ''
     const msgId   = params.get('msg_id')
     if (ctxType && ctxId) {
-      setActive({ type: ctxType, id: ctxId, name: ctxName })
+      const ctxName = params.get('ctx_name')
+      if (ctxName) {
+        setActive({ type: ctxType, id: ctxId, name: ctxName })
+      } else {
+        setActive({ type: ctxType, id: ctxId, name: '' })
+        resolveContextName(ctxType, ctxId).then(name => {
+          if (name) setActive(a => (a && a.id === ctxId ? { ...a, name } : a))
+        })
+      }
       if (msgId) setPendingScrollMsgId(msgId)
       navigate('/chat', { replace: true })
     }
-  }, [location.search, navigate])
+  }, [location.search, navigate, resolveContextName])
 
   // Restore last active context from localStorage when user becomes available.
   // Skip if there are URL navigation params (ctx_id / dm) — the URL effect
