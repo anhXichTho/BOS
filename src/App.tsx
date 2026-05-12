@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToastProvider } from './components/ui/Toast'
@@ -50,6 +50,26 @@ function ExitGuard() {
   return null
 }
 
+// ─── Push notification click → React Router navigation ──────────────────────
+// Service worker (sw-push.js) posts {type:'bos-push-navigate', url} when user
+// taps a push notification while the app is already open. Using SPA navigate
+// instead of a full reload preserves state and re-triggers route effects that
+// process query params like ?msg_id=.
+function PushNavListener() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    function handler(event: MessageEvent) {
+      const data = event.data as { type?: string; url?: string } | undefined
+      if (data?.type !== 'bos-push-navigate' || !data.url) return
+      navigate(data.url)
+    }
+    navigator.serviceWorker.addEventListener('message', handler)
+    return () => navigator.serviceWorker.removeEventListener('message', handler)
+  }, [navigate])
+  return null
+}
+
 // ─── Loading fallback ─────────────────────────────────────────────────────────
 function PageLoader() {
   return (
@@ -76,6 +96,7 @@ export default function App() {
         <ToastProvider>
           <BrowserRouter>
             <ExitGuard />
+            <PushNavListener />
             {/* Global side panel — outside Routes so it persists across navigation */}
             <SidePanel />
             {/* Round-10: first-login welcome modal — auto-shows when profile.onboarded_at is null. */}
