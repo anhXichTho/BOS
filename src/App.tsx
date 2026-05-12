@@ -6,6 +6,7 @@ import { ToastProvider } from './components/ui/Toast'
 import ThemeApplier from './components/layout/ThemeApplier'
 import ErrorBoundary from './components/ErrorBoundary'
 import { supabase } from './lib/supabase'
+import { isExitGuardSuspended } from './lib/exitGuardState'
 
 // ─── Eager (tiny, always needed) ─────────────────────────────────────────────
 import LoginPage from './pages/LoginPage'
@@ -37,6 +38,10 @@ function ExitGuard() {
     window.history.pushState({ _bosGuard: true }, '')
 
     const handlePop = () => {
+      // ChatPage suspends us while the user is viewing a chat thread on
+      // mobile — in that case ChatPage's own popstate handler opens the
+      // drawer instead of letting the app exit.
+      if (isExitGuardSuspended()) return
       if (window.history.state?._bosGuard) {
         const ok = window.confirm('Bạn có muốn thoát ứng dụng không?')
         if (!ok) {

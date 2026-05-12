@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Plus, Hash, FolderKanban, UserCircle, ChevronDown, ChevronRight, Users, Trash2, Loader2 } from 'lucide-react'
-import AppShell, { useCloseDrawer } from '../components/layout/AppShell'
+import AppShell, { useCloseDrawer, useOpenDrawer, useIsDrawerOpen } from '../components/layout/AppShell'
+import { useMediaQuery } from '../lib/useMediaQuery'
+import { suspendExitGuard } from '../lib/exitGuardState'
 import { SidebarSection, SidebarItem } from '../components/layout/Sidebar'
 import MessageFeed from '../components/chat/MessageFeed'
 import MessageInput from '../components/chat/MessageInput'
@@ -661,6 +663,49 @@ export default function ChatPage() {
       navigate('/chat', { replace: true })
     }
   }, [location.search, navigate, resolveContextName])
+
+  // ── Messenger-style mobile back UX ───────────────────────────────────────
+  // When the user is viewing a chat thread on mobile with the drawer closed,
+  // the hardware back button should OPEN THE DRAWER instead of leaving the
+  // page. A second back from drawer-open state falls through to ExitGuard
+  // (normal exit confirm).
+  //
+  // Mechanism:
+  //   1. Push a marker history entry on enter.
+  //   2. Suspend ExitGuard so it doesn't fire while we're handling back.
+  //   3. On popstate: open drawer, re-push _bosGuard so ExitGuard takes over
+  //      for the next back.
+  const isMobile = useMediaQuery('(max-width: 767px)')
+  const openDrawer = useOpenDrawer()
+  const isDrawerOpen = useIsDrawerOpen()
+
+  useEffect(() => {
+    if (!isMobile || !active || isDrawerOpen) return
+
+    suspendExitGuard(true)
+    const markerId = `bos-chat-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    window.history.pushState({ __bosChatBack: markerId }, '')
+
+    const handler = (e: PopStateEvent) => {
+      const state = e.state as { __bosChatBack?: string } | null
+      if (state?.__bosChatBack !== markerId) {
+        // Our marker was popped → open drawer instead of leaving page
+        openDrawer()
+        // Re-enable ExitGuard for the next back press from drawer-open state
+        suspendExitGuard(false)
+        // Ensure ExitGuard's sentinel is in place
+        if (!(window.history.state as { _bosGuard?: boolean } | null)?._bosGuard) {
+          window.history.pushState({ _bosGuard: true }, '')
+        }
+      }
+    }
+    window.addEventListener('popstate', handler)
+
+    return () => {
+      window.removeEventListener('popstate', handler)
+      suspendExitGuard(false)
+    }
+  }, [isMobile, active, isDrawerOpen, openDrawer])
 
   // Restore last active context from localStorage when user becomes available.
   // Skip if there are URL navigation params (ctx_id / dm) — the URL effect
