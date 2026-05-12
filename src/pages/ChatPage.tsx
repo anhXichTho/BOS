@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Plus, Hash, FolderKanban, UserCircle, ChevronDown, ChevronRight, Users, Trash2, Loader2 } from 'lucide-react'
-import AppShell, { useCloseDrawer, useOpenDrawer, useIsDrawerOpen } from '../components/layout/AppShell'
+import AppShell, { useCloseDrawer, useIsDrawerOpen } from '../components/layout/AppShell'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { suspendExitGuard } from '../lib/exitGuardState'
 import { SidebarSection, SidebarItem } from '../components/layout/Sidebar'
@@ -676,7 +676,6 @@ export default function ChatPage() {
   //   3. On popstate: open drawer, re-push _bosGuard so ExitGuard takes over
   //      for the next back.
   const isMobile = useMediaQuery('(max-width: 767px)')
-  const openDrawer = useOpenDrawer()
   const isDrawerOpen = useIsDrawerOpen()
 
   useEffect(() => {
@@ -689,14 +688,14 @@ export default function ChatPage() {
     const handler = (e: PopStateEvent) => {
       const state = e.state as { __bosChatBack?: string } | null
       if (state?.__bosChatBack !== markerId) {
-        // Our marker was popped → open drawer instead of leaving page
-        openDrawer()
-        // Re-enable ExitGuard for the next back press from drawer-open state
+        // Our marker was popped → open drawer instead of leaving the page.
+        // Dispatch a window event because ChatPage renders AppShell as its CHILD;
+        // a context-based callback would resolve to the default (no-op) here.
+        window.dispatchEvent(new CustomEvent('bos-open-drawer'))
         suspendExitGuard(false)
-        // Ensure ExitGuard's sentinel is in place
-        if (!(window.history.state as { _bosGuard?: boolean } | null)?._bosGuard) {
-          window.history.pushState({ _bosGuard: true }, '')
-        }
+        // Re-push _bosGuard so the next back press triggers ExitGuard's exit
+        // confirm (Messenger-style: back from drawer = exit prompt).
+        window.history.pushState({ _bosGuard: true }, '')
       }
     }
     window.addEventListener('popstate', handler)
@@ -705,7 +704,7 @@ export default function ChatPage() {
       window.removeEventListener('popstate', handler)
       suspendExitGuard(false)
     }
-  }, [isMobile, active, isDrawerOpen, openDrawer])
+  }, [isMobile, active, isDrawerOpen])
 
   // Restore last active context from localStorage when user becomes available.
   // Skip if there are URL navigation params (ctx_id / dm) — the URL effect

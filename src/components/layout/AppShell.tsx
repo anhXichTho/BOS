@@ -91,6 +91,15 @@ export default function AppShell({ sidebar, children, title }: AppShellProps) {
 
   const hasSidebar = !!sidebar
 
+  // Open drawer in response to a window-level custom event. Used by ChatPage
+  // (which renders AppShell as its CHILD, so context-based callbacks don't reach
+  // it) to programmatically open the drawer from the mobile back handler.
+  useEffect(() => {
+    const open = () => setDrawerOpen(true)
+    window.addEventListener('bos-open-drawer', open)
+    return () => window.removeEventListener('bos-open-drawer', open)
+  }, [])
+
   // Close drawer when navigating away from /chat.
   // On /chat: auto-open if no active chat context is saved (first visit / fresh user).
   // Otherwise opening is driven by NavTabs (tap tab again) or the hamburger ☰ button.
