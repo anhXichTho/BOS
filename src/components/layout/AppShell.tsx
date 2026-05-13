@@ -144,14 +144,21 @@ export default function AppShell({ sidebar, children, title }: AppShellProps) {
         </div>
       )}
 
-      {/* Mobile drawer */}
-      {sidebar && drawerOpen && (
+      {/* Mobile drawer — always mounted, slides in/out via CSS to avoid the
+          iOS WebKit white-flash that happens when the panel mounts on demand. */}
+      {sidebar && (
         <>
           <div
             onClick={() => setDrawerOpen(false)}
-            className="md:hidden fixed inset-0 bg-black/40 z-40"
+            className={`md:hidden fixed inset-0 bg-black/40 z-40 transition-opacity duration-200 ${
+              drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
           />
-          <div className="md:hidden fixed left-0 top-0 bottom-14 z-50 w-[280px] bg-neutral-25 border-r border-neutral-100 flex flex-col">
+          <div
+            className={`md:hidden fixed left-0 top-0 bottom-14 z-50 w-[280px] bg-neutral-25 border-r border-neutral-100 flex flex-col transition-transform duration-200 ${
+              drawerOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+          >
             <div className="flex items-center justify-between px-4 py-3 shrink-0 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
               <span className="text-sm font-serif font-medium text-neutral-700">Menu</span>
               <button
