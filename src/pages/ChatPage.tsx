@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Plus, Hash, FolderKanban, UserCircle, ChevronDown, ChevronRight, Users, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Hash, FolderKanban, UserCircle, ChevronDown, ChevronRight, Users, Trash2, Loader2, LogOut } from 'lucide-react'
 import AppShell, { useCloseDrawer, useIsDrawerOpen } from '../components/layout/AppShell'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { setInThreadView } from '../lib/exitGuardState'
@@ -271,6 +271,39 @@ function ChatSidebar({
     onError: (err: Error) => toastError('Không thể xoá: ' + err.message),
   })
 
+  /** Self-membership lookup so the "Rời kênh" icon only shows for channels
+   *  the user is actually in. Graceful fallback if migration #28 missing. */
+  const { data: myChannelIds = new Set<string>() } = useQuery({
+    queryKey: ['my-channel-memberships', user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('chat_channel_members')
+        .select('channel_id').eq('user_id', user!.id)
+      if (error) return new Set<string>()
+      return new Set((data ?? []).map(r => r.channel_id as string))
+    },
+    staleTime: 60_000,
+  })
+
+  const leaveChannelMutation = useMutation({
+    mutationFn: async (channelId: string) => {
+      const { error } = await supabase
+        .from('chat_channel_members')
+        .delete()
+        .eq('channel_id', channelId)
+        .eq('user_id', user!.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['channels'] })
+      qc.invalidateQueries({ queryKey: ['my-channel-memberships', user?.id] })
+      qc.invalidateQueries({ queryKey: ['chat-total-unread'] })
+      success('Đã rời kênh')
+    },
+    onError: (err: Error) => toastError('Không thể rời: ' + err.message),
+  })
+
   // Round-9: resolver so search-hit channel labels show DM partner names,
   // not the literal "DM" stored in chat_channels.name.
   const channelById = useMemo(() => new Map(channels.map(ch => [ch.id, ch])), [channels])
@@ -361,6 +394,19 @@ function ChatSidebar({
                     >
                       <Users size={11} />
                     </button>
+                    {myChannelIds.has(ch.id) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (window.confirm(`Rời kênh "${ch.name}"?`)) leaveChannelMutation.mutate(ch.id)
+                        }}
+                        className="text-neutral-400 hover:text-amber-600 p-0.5"
+                        title="Rời kênh"
+                      >
+                        <LogOut size={11} />
+                      </button>
+                    )}
                     {canDeleteChannel(ch) && (
                       <button
                         type="button"
