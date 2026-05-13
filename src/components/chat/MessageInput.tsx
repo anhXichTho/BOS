@@ -140,9 +140,43 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
     retry: false,
   })
 
-  // User mention picker: shown in non-personal channels
+  // Round-11: restrict the @mention picker to people who are actually in this
+  // channel/project — you should not be able to tag someone who can't see the
+  // message anyway. Returns null while loading or for contexts where no filter
+  // applies (DM / personal); `null` = no membership filter.
+  const { data: contextMemberIds } = useQuery({
+    queryKey: ['mention-context-members', contextType, contextId],
+    enabled: contextType === 'channel' || contextType === 'project',
+    queryFn: async (): Promise<Set<string> | null> => {
+      if (contextType === 'channel') {
+        const { data, error } = await supabase
+          .from('chat_channel_members').select('user_id').eq('channel_id', contextId)
+        if (error) return null  // migration #28 missing → don't filter
+        return new Set((data ?? []).map(r => r.user_id as string))
+      }
+      if (contextType === 'project') {
+        const { data, error } = await supabase
+          .from('project_members').select('user_id').eq('project_id', contextId)
+        if (error) return null  // migration #33 missing → don't filter
+        return new Set((data ?? []).map(r => r.user_id as string))
+      }
+      return null
+    },
+    staleTime: 60_000,
+  })
+
+  // User mention picker: shown in non-personal channels.
+  // For channel/project contexts: restrict to members so non-members aren't
+  // suggestable (and can't be silently notified about a message they can't read).
   const mentionResults = (!isSelfChat && mentionSearch !== null)
-    ? allProfiles.filter(p => p.full_name.toLowerCase().includes(mentionSearch.toLowerCase())).slice(0, 6)
+    ? allProfiles
+        .filter(p => {
+          if (contextType !== 'channel' && contextType !== 'project') return true
+          if (!contextMemberIds) return false  // strict while loading / on query error
+          return contextMemberIds.has(p.id)
+        })
+        .filter(p => p.full_name.toLowerCase().includes(mentionSearch.toLowerCase()))
+        .slice(0, 6)
     : []
 
   // Show @all in channels + project threads (not DMs, not personal self-chat)
@@ -461,7 +495,15 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
       // Round-9: expand @all / @groupname markers into individual user IDs
       // BEFORE insert so fan_out_mentions trigger fires for each.
       const expandedIds = await expandGroupMarkersToUserIds()
-      const finalMentions = Array.from(new Set([...mentions, ...expandedIds]))
+      let finalMentions = Array.from(new Set([...mentions, ...expandedIds]))
+
+      // Round-11: drop any mentioned user_id that's not actually a member of
+      // this channel/project — covers the case where someone was removed
+      // between picker open and send. Non-members can't read the message
+      // anyway; notifying them would be a leak.
+      if ((contextType === 'channel' || contextType === 'project') && contextMemberIds) {
+        finalMentions = finalMentions.filter(id => contextMemberIds.has(id))
+      }
 
       // Post the user message (stored as-is including @BotName prefix)
       const stored = isRichContent ? content : trimmed
