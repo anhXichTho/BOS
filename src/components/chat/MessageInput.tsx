@@ -142,13 +142,20 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
 
   // Round-11: restrict the @mention picker to people who are actually in this
   // channel/project — you should not be able to tag someone who can't see the
-  // message anyway. Returns null while loading or for contexts where no filter
-  // applies (DM / personal); `null` = no membership filter.
+  // message anyway. Returns null for contexts with no filter (DM / personal /
+  // PUBLIC channel — anyone can be mentioned there).
   const { data: contextMemberIds } = useQuery({
     queryKey: ['mention-context-members', contextType, contextId],
     enabled: contextType === 'channel' || contextType === 'project',
     queryFn: async (): Promise<Set<string> | null> => {
       if (contextType === 'channel') {
+        // Public channel: no filter — anyone in the org can be tagged.
+        const { data: ch } = await supabase
+          .from('chat_channels')
+          .select('is_private')
+          .eq('id', contextId)
+          .maybeSingle()
+        if (ch && ch.is_private === false) return null
         const { data, error } = await supabase
           .from('chat_channel_members').select('user_id').eq('channel_id', contextId)
         if (error) return null  // migration #28 missing → don't filter
@@ -172,7 +179,9 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
     ? allProfiles
         .filter(p => {
           if (contextType !== 'channel' && contextType !== 'project') return true
-          if (!contextMemberIds) return false  // strict while loading / on query error
+          // contextMemberIds === null means no filter (public channel / migration
+          // missing) → show all. Set with members → filter to members only.
+          if (!contextMemberIds) return true
           return contextMemberIds.has(p.id)
         })
         .filter(p => p.full_name.toLowerCase().includes(mentionSearch.toLowerCase()))
