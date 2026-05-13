@@ -118,6 +118,29 @@ export default memo(function ChannelMembersModal({ open, onClose, channel }: Pro
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmText, setConfirmText] = useState('')
 
+  /** Any member can self-remove from a channel (gotcha: owner can too — channel
+   *  stays alive and an admin/editor can take over). */
+  const leaveChannel = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error('not authenticated')
+      const { error } = await supabase
+        .from('chat_channel_members')
+        .delete()
+        .eq('channel_id', channel.id)
+        .eq('user_id', user.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['channels'] })
+      qc.invalidateQueries({ queryKey: ['chat-total-unread'] })
+      success(`Đã rời kênh "${channel.name}"`)
+      onClose()
+    },
+    onError: (err: Error) => toastError('Không thể rời kênh: ' + err.message),
+  })
+
+  const isMember = !!user && members.some(m => m.user_id === user.id)
+
   const deleteChannel = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.rpc('delete_channel', { p_channel_id: channel.id })
@@ -196,6 +219,27 @@ export default memo(function ChannelMembersModal({ open, onClose, channel }: Pro
             ))}
           </ul>
         </section>
+
+        {/* Leave channel — any member (including owner) can self-remove */}
+        {isMember && channel.channel_type !== 'dm' && channel.channel_type !== 'personal' && (
+          <section className="border border-amber-200 bg-amber-50/40 rounded-lg p-3 mt-3 flex items-center justify-between gap-3">
+            <div className="flex-1">
+              <p className="text-[11px] font-semibold text-amber-700 mb-0.5">Rời kênh</p>
+              <p className="text-[10px] text-neutral-600">
+                Bạn sẽ không còn thấy hoặc nhận thông báo từ kênh này. Có thể được mời lại sau.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { if (window.confirm(`Rời kênh "${channel.name}"?`)) leaveChannel.mutate() }}
+              disabled={leaveChannel.isPending}
+              className="shrink-0 text-[11px] px-3 py-1.5 border border-amber-300 text-amber-700 hover:bg-amber-100 rounded transition-colors disabled:opacity-40 flex items-center gap-1.5"
+            >
+              {leaveChannel.isPending && <Loader2 size={11} className="animate-spin" />}
+              Rời kênh
+            </button>
+          </section>
+        )}
 
         {/* Danger zone — delete channel (owner / admin / editor only) */}
         {canManage && channel.channel_type !== 'dm' && channel.channel_type !== 'personal' && (
