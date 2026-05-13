@@ -118,25 +118,11 @@ export default memo(function ChannelMembersModal({ open, onClose, channel }: Pro
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmText, setConfirmText] = useState('')
 
-  /** Any member can self-remove from a channel. If they're the owner, also
-   *  nullify owner_id so the channel disappears from their sidebar — otherwise
-   *  `chat_channels` RLS `owner_id = auth.uid()` keeps it visible to them. */
+  /** Atomic self-leave via RPC (handles owner_id nullify in one transaction). */
   const leaveChannel = useMutation({
     mutationFn: async () => {
-      if (!user?.id) throw new Error('not authenticated')
-      const { error: e1 } = await supabase
-        .from('chat_channel_members')
-        .delete()
-        .eq('channel_id', channel.id)
-        .eq('user_id', user.id)
-      if (e1) throw e1
-      if (channel.owner_id === user.id) {
-        const { error: e2 } = await supabase
-          .from('chat_channels')
-          .update({ owner_id: null })
-          .eq('id', channel.id)
-        if (e2) throw e2
-      }
+      const { error } = await supabase.rpc('leave_channel', { p_channel_id: channel.id })
+      if (error) throw error
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['channels'] })

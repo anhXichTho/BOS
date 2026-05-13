@@ -288,25 +288,11 @@ function ChatSidebar({
 
   const leaveChannelMutation = useMutation({
     mutationFn: async (channel: ChatChannel) => {
-      // 1. Remove own membership row
-      const { error: e1 } = await supabase
-        .from('chat_channel_members')
-        .delete()
-        .eq('channel_id', channel.id)
-        .eq('user_id', user!.id)
-      if (e1) throw e1
-      // 2. If we're the owner, orphan the channel by nullifying owner_id —
-      //    otherwise chat_channels RLS `owner_id = auth.uid()` would still
-      //    keep it visible for us. Channel stays alive; admin/editor can take
-      //    over. Doesn't apply for public channels (no point — they're visible
-      //    to all regardless).
-      if (channel.owner_id === user!.id) {
-        const { error: e2 } = await supabase
-          .from('chat_channels')
-          .update({ owner_id: null })
-          .eq('id', channel.id)
-        if (e2) throw e2
-      }
+      // Use RPC (security definer) — atomic delete-membership + optional
+      // owner_id nullify, avoiding RLS WITH CHECK failure when an owner-as-user
+      // updates chat_channels directly.
+      const { error } = await supabase.rpc('leave_channel', { p_channel_id: channel.id })
+      if (error) throw error
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['channels'] })
