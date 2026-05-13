@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Info, X, Pencil, Check, Trash2 } from 'lucide-react'
+import { ArrowLeft, Info, X, Pencil, Check, Trash2, Users } from 'lucide-react'
 import AppShell from '../components/layout/AppShell'
 import Button from '../components/ui/Button'
 import Modal from '../components/ui/Modal'
@@ -13,6 +13,7 @@ import ProjectFilesTab from '../components/projects/ProjectFilesTab'
 import ProjectActivityFeed from '../components/projects/ProjectActivityFeed'
 import CustomerPortalTab from '../components/projects/CustomerPortalTab'
 import ProjectWorkflowShortlist from '../components/projects/ProjectWorkflowShortlist'
+import ProjectMembersModal from '../components/projects/ProjectMembersModal'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -37,7 +38,8 @@ export default function ProjectDetailPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const { isAdmin, isEditor } = useAuth()
+  const { user, isAdmin, isEditor } = useAuth()
+  const [membersModalOpen, setMembersModalOpen] = useState(false)
   const { success, error: toastError } = useToast()
   const [tab, setTab] = useState<Tab>('thread')
   const [infoOpen, setInfoOpen] = useState(false)
@@ -147,6 +149,9 @@ export default function ProjectDetailPage() {
   }
 
   const canEdit = isAdmin || isEditor
+  const canManageMembers = canEdit
+    || project?.assigned_to === user?.id
+    || project?.created_by === user?.id
 
   // Extracted so it can be rendered in both the desktop side panel and the mobile drawer.
   const infoPanel = (
@@ -233,6 +238,18 @@ export default function ProjectDetailPage() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {canManageMembers && (
+          <div className="pt-2 border-t border-neutral-100">
+            <button
+              onClick={() => setMembersModalOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-neutral-600 hover:text-primary-700 transition-colors"
+            >
+              <Users size={13} />
+              Quản lý thành viên
+            </button>
           </div>
         )}
 
@@ -433,6 +450,14 @@ export default function ProjectDetailPage() {
           Xóa dự án <strong>"{project?.title}"</strong>? Hành động này không thể hoàn tác.
         </p>
       </Modal>
+
+      {membersModalOpen && project && (
+        <ProjectMembersModal
+          open
+          onClose={() => setMembersModalOpen(false)}
+          project={{ id: project.id, title: project.title, assigned_to: project.assigned_to, created_by: project.created_by }}
+        />
+      )}
     </AppShell>
   )
 }
