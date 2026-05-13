@@ -96,4 +96,23 @@ create policy "Users can edit own messages"
     )
   );
 
+-- ─── 5. Split the legacy "Admin/Editor can manage team channels" ALL policy ──
+-- That single policy with cmd=ALL also covered SELECT, giving admin/editor a
+-- silent read bypass on every team channel. Replace it with 3 separate policies
+-- for INSERT / UPDATE / DELETE — manage rights stay, read does NOT.
+drop policy if exists "Admin/Editor can manage team channels" on public.chat_channels;
+
+create policy "Admin/Editor can insert team channels"
+  on public.chat_channels for insert
+  with check (channel_type <> 'dm' and public.auth_is_admin_or_editor() = true);
+
+create policy "Admin/Editor can update team channels"
+  on public.chat_channels for update
+  using (channel_type <> 'dm' and public.auth_is_admin_or_editor() = true)
+  with check (channel_type <> 'dm' and public.auth_is_admin_or_editor() = true);
+
+create policy "Admin/Editor can delete team channels"
+  on public.chat_channels for delete
+  using (channel_type <> 'dm' and public.auth_is_admin_or_editor() = true);
+
 notify pgrst, 'reload schema';
