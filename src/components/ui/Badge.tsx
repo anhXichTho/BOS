@@ -42,12 +42,14 @@ export const runStatusLabel: Record<RunStatus, string> = {
 export const roleColors: Record<UserRole, string> = {
   admin:  'bg-violet-50 text-violet-700',
   editor: 'bg-primary-50 text-primary-700',
+  leader: 'bg-amber-50 text-amber-700',
   user:   'bg-neutral-100 text-neutral-600',
 }
 
 export const roleLabel: Record<UserRole, string> = {
   admin:  'Admin',
   editor: 'Editor',
+  leader: 'Leader',
   user:   'User',
 }
 

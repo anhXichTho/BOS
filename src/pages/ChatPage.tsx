@@ -73,7 +73,7 @@ function ChatSidebar({
   /** Round-9: search-hit click → navigates AND sets scroll-to-message. */
   onSearchHit?: (ctx: ActiveContext, msgId: string) => void
 }) {
-  const { isAdmin, isEditor, selfChatId, user } = useAuth()
+  const { isAdmin, isEditor, canCreateResources, selfChatId, user } = useAuth()
   const closeDrawer = useCloseDrawer()
   const select = (ctx: ActiveContext) => { closeDrawer(); onSelect(ctx) }
   const { success, error: toastError } = useToast()
@@ -244,7 +244,7 @@ function ChatSidebar({
     setManageMembersForChannelId(created.id)
   }
 
-  const canManageChannels = isAdmin || isEditor
+  const canManageChannels = canCreateResources
   const selfUnread = selfChatId ? (unreadCountMap[selfChatId] ?? 0) : 0
 
   /** Helper: can the current user delete this team channel? Owner OR admin/editor. */

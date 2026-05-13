@@ -177,6 +177,7 @@ function RoleSelect({ value, onChange }: { value: UserRole; onChange: (r: UserRo
       >
         <option value="admin">Admin</option>
         <option value="editor">Editor</option>
+        <option value="leader">Leader</option>
         <option value="user">User</option>
       </select>
       <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />

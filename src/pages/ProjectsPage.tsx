@@ -17,7 +17,7 @@ export default function ProjectsPage() {
   const [view, setView] = useState<ViewMode>('kanban')
   const [createOpen, setCreateOpen] = useState(false)
   const [filterStatus, setFilterStatus] = useState<ProjectStatus | ''>('')
-  const { isAdmin, isEditor } = useAuth()
+  const { canCreateResources } = useAuth()
   const qc = useQueryClient()
 
   const { data: projects = [], isLoading } = useQuery({
@@ -72,7 +72,7 @@ export default function ProjectsPage() {
               </button>
             </div>
 
-            {(isAdmin || isEditor) && (
+            {canCreateResources && (
               <Button onClick={() => setCreateOpen(true)}>
                 <Plus size={14} /> Tạo dự án
               </Button>

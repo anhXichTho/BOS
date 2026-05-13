@@ -148,10 +148,12 @@ export default function ProjectDetailPage() {
     )
   }
 
-  const canEdit = isAdmin || isEditor
+  // Leader-as-creator can edit + manage members of their own projects.
+  const isProjectOwner = !!user && (
+    project?.assigned_to === user.id || project?.created_by === user.id
+  )
+  const canEdit = isAdmin || isEditor || isProjectOwner
   const canManageMembers = canEdit
-    || project?.assigned_to === user?.id
-    || project?.created_by === user?.id
 
   // Extracted so it can be rendered in both the desktop side panel and the mobile drawer.
   const infoPanel = (

@@ -8,9 +8,16 @@ interface AuthContextValue {
   user: User | null
   session: Session | null
   profile: Profile | null
+  /** True if user is in `leader_members` (org hierarchy — has subordinates). */
   isLeader: boolean
   isAdmin: boolean
   isEditor: boolean
+  /** True if profile.role === 'leader' — a role that can create channels/projects
+   *  but only sees what they own/are member of. Distinct from `isLeader`
+   *  (org-hierarchy flag). */
+  isRoleLeader: boolean
+  /** Admin / editor / role-leader → can create channels & projects. */
+  canCreateResources: boolean
   canManageTemplates: boolean
   /** Group IDs the current user belongs to. */
   groupIds: string[]
@@ -129,13 +136,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAdmin    = profile?.role === 'admin'
   const isEditor   = profile?.role === 'editor'
+  const isRoleLeader = profile?.role === 'leader'
+  const canCreateResources = isAdmin || isEditor || isRoleLeader
   const canManageTemplates = isAdmin || isEditor || isLeader
   const preferences = (profile?.preferences ?? {}) as UserPreferences
   const inGroup    = (groupId: string) => groupIds.includes(groupId)
 
   return (
     <AuthContext.Provider value={{
-      user, session, profile, isLeader, isAdmin, isEditor,
+      user, session, profile, isLeader, isAdmin, isEditor, isRoleLeader, canCreateResources,
       canManageTemplates, groupIds, inGroup,
       preferences, updatePreferences, updateProfile,
       selfChatId,

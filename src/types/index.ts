@@ -1,6 +1,6 @@
 // ─── Auth & Users ───────────────────────────────────────────────────────────
 
-export type UserRole = 'admin' | 'editor' | 'user'
+export type UserRole = 'admin' | 'editor' | 'leader' | 'user'
 
 export interface Profile {
   id: string
