@@ -162,6 +162,8 @@ export interface ChatChannel {
   channel_type: 'team' | 'personal' | 'dm'
   dm_partner_id: string | null
   created_by: string | null
+  /** Round-7b/2 (migration #28): private channels gate visibility by chat_channel_members. */
+  is_private?: boolean | null
   created_at: string
 }
 

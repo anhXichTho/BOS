@@ -394,19 +394,26 @@ function ChatSidebar({
                     >
                       <Users size={11} />
                     </button>
-                    {myChannelIds.has(ch.id) && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (window.confirm(`Rời kênh "${ch.name}"?`)) leaveChannelMutation.mutate(ch.id)
-                        }}
-                        className="text-neutral-400 hover:text-amber-600 p-0.5"
-                        title="Rời kênh"
-                      >
-                        <LogOut size={11} />
-                      </button>
-                    )}
+                    {/* "Rời kênh" only makes sense for PRIVATE channels you're a member
+                        of AND don't own. For public channels you stay visible regardless;
+                        for owned channels the owner_id check keeps you in. */}
+                    {myChannelIds.has(ch.id)
+                      && ch.is_private
+                      && ch.owner_id !== user?.id
+                      && ch.created_by !== user?.id
+                      && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            if (window.confirm(`Rời kênh "${ch.name}"?`)) leaveChannelMutation.mutate(ch.id)
+                          }}
+                          className="text-neutral-400 hover:text-amber-600 p-0.5"
+                          title="Rời kênh"
+                        >
+                          <LogOut size={11} />
+                        </button>
+                      )}
                     {canDeleteChannel(ch) && (
                       <button
                         type="button"

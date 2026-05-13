@@ -29,7 +29,7 @@ interface MemberRow {
 interface Props {
   open: boolean
   onClose: () => void
-  channel: Pick<ChatChannel, 'id' | 'name' | 'channel_type'> & { is_private?: boolean; created_by?: string | null; owner_id?: string | null }
+  channel: Pick<ChatChannel, 'id' | 'name' | 'channel_type'> & { is_private?: boolean | null; created_by?: string | null; owner_id?: string | null }
 }
 
 export default memo(function ChannelMembersModal({ open, onClose, channel }: Props) {
