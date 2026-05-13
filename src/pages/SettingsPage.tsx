@@ -106,7 +106,8 @@ export default function SettingsPage() {
 // ─── Team tab ────────────────────────────────────────────────────────────────
 
 function TeamTab() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, isEditor } = useAuth()
+  const canManage = isAdmin || isEditor
   const { success, error: toastError } = useToast()
   const qc = useQueryClient()
 
@@ -128,7 +129,19 @@ function TeamTab() {
       qc.invalidateQueries({ queryKey: ['profiles'] })
       success('Đã cập nhật role')
     },
-    onError: () => toastError('Không thể cập nhật role'),
+    onError: (err: Error) => toastError('Không thể cập nhật role: ' + err.message),
+  })
+
+  const renameUser = useMutation({
+    mutationFn: async ({ id, full_name }: { id: string; full_name: string }) => {
+      const { error } = await supabase.from('profiles').update({ full_name }).eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profiles'] })
+      success('Đã đổi tên')
+    },
+    onError: (err: Error) => toastError('Không thể đổi tên: ' + err.message),
   })
 
   if (isLoading) {
@@ -144,30 +157,81 @@ function TeamTab() {
   return (
     <div className="bg-white border border-neutral-100 rounded-lg divide-y divide-neutral-100">
       {profiles.map(p => (
-        <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-          <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">
-            {avatarInitials(p.full_name)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-neutral-800 truncate">{p.full_name}</div>
-            <div className="text-[11px] text-neutral-400">{p.id.slice(0, 8)}…</div>
-          </div>
-          <div className="flex items-center gap-2">
-            <RoleBadge role={p.role} />
-            {isAdmin && (
-              <RoleSelect
-                value={p.role}
-                onChange={role => changeRole.mutate({ id: p.id, role })}
-              />
-            )}
-          </div>
-        </div>
+        <UserRow
+          key={p.id}
+          profile={p}
+          canManage={canManage}
+          isAdmin={isAdmin}
+          onRename={(name) => renameUser.mutate({ id: p.id, full_name: name })}
+          onChangeRole={(role) => changeRole.mutate({ id: p.id, role })}
+        />
       ))}
     </div>
   )
 }
 
-function RoleSelect({ value, onChange }: { value: UserRole; onChange: (r: UserRole) => void }) {
+function UserRow({
+  profile, canManage, isAdmin, onRename, onChangeRole,
+}: {
+  profile: Profile
+  canManage: boolean
+  isAdmin: boolean
+  onRename: (name: string) => void
+  onChangeRole: (role: UserRole) => void
+}) {
+  const [editingName, setEditingName] = useState(false)
+  const [nameDraft, setNameDraft] = useState(profile.full_name)
+
+  function commitName() {
+    const trimmed = nameDraft.trim()
+    if (trimmed && trimmed !== profile.full_name) onRename(trimmed)
+    setEditingName(false)
+  }
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <div className="w-9 h-9 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-semibold shrink-0">
+        {avatarInitials(profile.full_name)}
+      </div>
+      <div className="flex-1 min-w-0">
+        {editingName ? (
+          <input
+            type="text"
+            value={nameDraft}
+            onChange={e => setNameDraft(e.target.value)}
+            onBlur={commitName}
+            onKeyDown={e => { if (e.key === 'Enter') commitName(); if (e.key === 'Escape') { setNameDraft(profile.full_name); setEditingName(false) } }}
+            autoFocus
+            className="w-full text-sm font-medium text-neutral-800 border border-neutral-200 focus:border-primary-400 focus:outline-none rounded px-2 py-0.5"
+          />
+        ) : (
+          <button
+            type="button"
+            disabled={!canManage}
+            onClick={() => { setNameDraft(profile.full_name); setEditingName(true) }}
+            className={`text-left text-sm font-medium text-neutral-800 truncate w-full ${canManage ? 'hover:text-primary-600 cursor-text' : 'cursor-default'}`}
+            title={canManage ? 'Bấm để đổi tên' : undefined}
+          >
+            {profile.full_name}
+          </button>
+        )}
+        <div className="text-[11px] text-neutral-400">{profile.id.slice(0, 8)}…</div>
+      </div>
+      <div className="flex items-center gap-2">
+        <RoleBadge role={profile.role} />
+        {canManage && (
+          <RoleSelect
+            value={profile.role}
+            onChange={onChangeRole}
+            allowAdmin={isAdmin}
+          />
+        )}
+      </div>
+    </div>
+  )
+}
+
+function RoleSelect({ value, onChange, allowAdmin }: { value: UserRole; onChange: (r: UserRole) => void; allowAdmin: boolean }) {
   return (
     <div className="relative">
       <select
@@ -175,7 +239,8 @@ function RoleSelect({ value, onChange }: { value: UserRole; onChange: (r: UserRo
         onChange={e => onChange(e.target.value as UserRole)}
         className="appearance-none pl-2 pr-6 py-1 text-xs border border-neutral-200 rounded-lg focus:border-primary-400 focus:outline-none bg-white"
       >
-        <option value="admin">Admin</option>
+        {/* Editor can keep current admin selection but cannot promote others to admin */}
+        {(allowAdmin || value === 'admin') && <option value="admin">Admin</option>}
         <option value="editor">Editor</option>
         <option value="leader">Leader</option>
         <option value="user">User</option>
