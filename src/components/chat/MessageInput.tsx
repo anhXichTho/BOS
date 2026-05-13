@@ -295,6 +295,20 @@ export default function MessageInput({ contextType, contextId, botReplyContext, 
             const { data } = await supabase.from('profiles').select('id')
             for (const r of data ?? []) ids.add((r as any).id)
           }
+        } else if (contextType === 'project') {
+          // Project context: restrict to project_members (so @all doesn't spam
+          // every user in the org). Falls back to all profiles if migration #33
+          // hasn't run yet (table missing → graceful degrade).
+          const { data, error } = await supabase
+            .from('project_members')
+            .select('user_id').eq('project_id', contextId)
+          if (error) {
+            console.warn('[@all] project_members query failed (migration #33 pending?):', error.message)
+            const { data: all } = await supabase.from('profiles').select('id')
+            for (const r of all ?? []) ids.add((r as any).id)
+          } else {
+            for (const r of data ?? []) ids.add((r as any).user_id)
+          }
         } else {
           const { data } = await supabase.from('profiles').select('id')
           for (const r of data ?? []) ids.add((r as any).id)
