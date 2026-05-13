@@ -287,13 +287,26 @@ function ChatSidebar({
   })
 
   const leaveChannelMutation = useMutation({
-    mutationFn: async (channelId: string) => {
-      const { error } = await supabase
+    mutationFn: async (channel: ChatChannel) => {
+      // 1. Remove own membership row
+      const { error: e1 } = await supabase
         .from('chat_channel_members')
         .delete()
-        .eq('channel_id', channelId)
+        .eq('channel_id', channel.id)
         .eq('user_id', user!.id)
-      if (error) throw error
+      if (e1) throw e1
+      // 2. If we're the owner, orphan the channel by nullifying owner_id —
+      //    otherwise chat_channels RLS `owner_id = auth.uid()` would still
+      //    keep it visible for us. Channel stays alive; admin/editor can take
+      //    over. Doesn't apply for public channels (no point — they're visible
+      //    to all regardless).
+      if (channel.owner_id === user!.id) {
+        const { error: e2 } = await supabase
+          .from('chat_channels')
+          .update({ owner_id: null })
+          .eq('id', channel.id)
+        if (e2) throw e2
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['channels'] })
@@ -394,26 +407,28 @@ function ChatSidebar({
                     >
                       <Users size={11} />
                     </button>
-                    {/* "Rời kênh" only makes sense for PRIVATE channels you're a member
-                        of AND don't own. For public channels you stay visible regardless;
-                        for owned channels the owner_id check keeps you in. */}
-                    {myChannelIds.has(ch.id)
-                      && ch.is_private
-                      && ch.owner_id !== user?.id
-                      && ch.created_by !== user?.id
-                      && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            if (window.confirm(`Rời kênh "${ch.name}"?`)) leaveChannelMutation.mutate(ch.id)
-                          }}
-                          className="text-neutral-400 hover:text-amber-600 p-0.5"
-                          title="Rời kênh"
-                        >
-                          <LogOut size={11} />
-                        </button>
-                      )}
+                    {/* "Rời kênh" — for any private channel you can see.
+                        Includes owners: leaving as owner nullifies owner_id so
+                        the channel disappears from your sidebar but stays alive
+                        for other members (admin/editor can take over). Public
+                        channels aren't shown — they're visible to all anyway. */}
+                    {ch.is_private && (myChannelIds.has(ch.id) || ch.owner_id === user?.id) && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const isOwner = ch.owner_id === user?.id
+                          const msg = isOwner
+                            ? `Rời kênh "${ch.name}"?\nBạn là chủ kênh — rời ra sẽ huỷ quyền chủ; kênh vẫn tồn tại cho các thành viên còn lại.`
+                            : `Rời kênh "${ch.name}"?`
+                          if (window.confirm(msg)) leaveChannelMutation.mutate(ch)
+                        }}
+                        className="text-neutral-400 hover:text-amber-600 p-0.5"
+                        title="Rời kênh"
+                      >
+                        <LogOut size={11} />
+                      </button>
+                    )}
                     {canDeleteChannel(ch) && (
                       <button
                         type="button"
