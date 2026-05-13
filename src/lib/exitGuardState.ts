@@ -1,18 +1,20 @@
 /**
- * Module-level flag shared between ExitGuard (App.tsx) and ChatPage's mobile
- * back-button handler. When true, ExitGuard skips its "exit app?" confirm so
- * ChatPage can intercept the popstate and open the drawer instead.
+ * Module-level state bridge between ChatPage and App-level back-button handler.
  *
- * Set true ONLY while the user is viewing a chat thread on mobile with the
- * drawer closed; cleared on every other condition.
+ * ChatPage renders AppShell as its CHILD, so it can't communicate via React
+ * context to App-level code. It publishes `inThreadView` here whenever the user
+ * is viewing a chat thread on mobile with the drawer closed. ExitGuard reads
+ * this flag on every popstate to decide whether to:
+ *   - Open the drawer (inThreadView=true → Messenger-style back)
+ *   - Show the exit-app confirm (default mobile guard behavior)
  */
 
-let suspended = false
+let inThreadView = false
 
-export function suspendExitGuard(v: boolean): void {
-  suspended = v
+export function setInThreadView(v: boolean): void {
+  inThreadView = v
 }
 
-export function isExitGuardSuspended(): boolean {
-  return suspended
+export function getInThreadView(): boolean {
+  return inThreadView
 }

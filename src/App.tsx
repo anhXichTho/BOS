@@ -6,7 +6,7 @@ import { ToastProvider } from './components/ui/Toast'
 import ThemeApplier from './components/layout/ThemeApplier'
 import ErrorBoundary from './components/ErrorBoundary'
 import { supabase } from './lib/supabase'
-import { isExitGuardSuspended } from './lib/exitGuardState'
+import { getInThreadView } from './lib/exitGuardState'
 
 // ─── Eager (tiny, always needed) ─────────────────────────────────────────────
 import LoginPage from './pages/LoginPage'
@@ -25,10 +25,15 @@ const PortalPage        = lazy(() => import('./pages/portal/PortalPage'))
 const TasksPage         = lazy(() => import('./pages/TasksPage'))
 const DocumentsPage     = lazy(() => import('./pages/DocumentsPage'))
 
-// ─── Mobile back-button exit guard ───────────────────────────────────────────
-// Pushes a sentinel history entry so the hardware/browser back button can be
-// intercepted before it closes the tab. On "back to sentinel" → confirm dialog.
-// If cancelled: re-push sentinel. If confirmed: next back naturally exits.
+// ─── Mobile back-button guard ────────────────────────────────────────────────
+// Unified popstate handler that does two jobs on mobile:
+//   1) Messenger-style chat back: when ChatPage signals "in thread view"
+//      (mobile + active context + drawer closed), back opens the drawer.
+//   2) Exit confirm: any other back lands on a `_bosGuard` sentinel and
+//      prompts before exiting.
+//
+// We re-push `_bosGuard` after every intercepted back so subsequent presses
+// keep triggering the guard until the user explicitly confirms exit.
 function ExitGuard() {
   useEffect(() => {
     // Only intercept on mobile — on desktop the back button navigates between
@@ -38,15 +43,18 @@ function ExitGuard() {
     window.history.pushState({ _bosGuard: true }, '')
 
     const handlePop = () => {
-      // ChatPage suspends us while the user is viewing a chat thread on
-      // mobile — in that case ChatPage's own popstate handler opens the
-      // drawer instead of letting the app exit.
-      if (isExitGuardSuspended()) return
+      // Case 1 — in chat thread view: open drawer + re-push _bosGuard so the
+      // next back lands here again (drawer back → exit confirm).
+      if (getInThreadView()) {
+        window.dispatchEvent(new CustomEvent('bos-open-drawer'))
+        window.history.pushState({ _bosGuard: true }, '')
+        return
+      }
+
+      // Case 2 — landed on the exit sentinel: show confirm.
       if (window.history.state?._bosGuard) {
         const ok = window.confirm('Bạn có muốn thoát ứng dụng không?')
-        if (!ok) {
-          window.history.pushState({ _bosGuard: true }, '')
-        }
+        if (!ok) window.history.pushState({ _bosGuard: true }, '')
       }
     }
 
